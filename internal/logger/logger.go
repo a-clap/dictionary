@@ -7,6 +7,7 @@ import (
 
 type Level int64
 
+// Level defines current logging level
 const (
 	Info Level = iota
 	Warn
@@ -16,6 +17,7 @@ const (
 	Panic
 )
 
+// Logger interface
 type Logger interface {
 	Errorf(format string, args ...interface{})
 	Fatalf(format string, args ...interface{})
@@ -25,6 +27,7 @@ type Logger interface {
 	SetLevel(level Level)
 }
 
+// Dummy satisfies Logger interface, it just doesn't log anything anywhere
 type Dummy struct {
 }
 
@@ -35,16 +38,18 @@ func (d Dummy) Warnf(string, ...interface{})  {}
 func (d Dummy) Debugf(string, ...interface{}) {}
 func (d Dummy) SetLevel(Level)                {}
 
-type Standard struct {
-	*zap.SugaredLogger
-}
-
+// NewDummy creates Dummy Logger
 func NewDummy() Dummy {
 	return Dummy{}
 }
 
+// Standard logger type, inherits from zap.SugaredLogger
+type Standard struct {
+	*zap.SugaredLogger
+}
+
+// NewDevelopment create new Standard logger with predefined time layout
 func NewDevelopment() Standard {
-	//atom := zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.000")
 
@@ -69,10 +74,11 @@ func matchLevel(level Level) zapcore.Level {
 	case Panic:
 		return zapcore.PanicLevel
 	}
-
+	// Just to discard warning
 	return zapcore.PanicLevel
 }
 
+// SetLevel dynamic set level of logging
 func (s *Standard) SetLevel(level Level) {
 	lvl := matchLevel(level)
 	s.SugaredLogger = s.SugaredLogger.Desugar().

@@ -14,8 +14,8 @@ type MyMemory struct {
 }
 
 type responseData struct {
-	Text  string `json:"translatedText"`
-	Match int    `json:"match"`
+	Text  string  `json:"translatedText"`
+	Match float64 `json:"match"`
 }
 
 type response struct {
@@ -43,7 +43,7 @@ func getQuery(word string, lang translate.Language) string {
 
 func (d *MyMemory) Translate(word string, lang translate.Language) (translation string) {
 	s := getQuery(word, lang)
-	d.Infof("query = %s, for word = %s, lang = %+v", s, word, lang)
+	d.Infof("query = %s, for text = %s, lang = %+v", s, word, lang)
 
 	resp, err := http.Get(s)
 	if err != nil {

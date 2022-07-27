@@ -27,22 +27,22 @@ func New(logger logger.Logger) *MyMemory {
 	return &MyMemory{logger}
 }
 
-func getQuery(word string, lang translate.Language) string {
-	const getUrl = "https://api.mymemory.translated.net/get?q="
-	word = url.QueryEscape(word)
-	langPair := "langpair="
+func query(word string, lang translate.Language) string {
+	const GetUrl = "https://api.mymemory.translated.net/get?q=%s&langpair=%s"
+	word = url.PathEscape(word)
 
+	langPair := ""
 	if lang == translate.English {
-		langPair += "en|pl"
+		langPair = "en|pl"
 	} else {
-		langPair += "pl|en"
+		langPair = "pl|en"
 	}
-	return fmt.Sprintf("%s%s&%s", getUrl, word, langPair)
+	return fmt.Sprintf(GetUrl, word, langPair)
 
 }
 
 func (d *MyMemory) Translate(word string, lang translate.Language) (translation string) {
-	s := getQuery(word, lang)
+	s := query(word, lang)
 	d.Infof("query = %s, for text = %s, lang = %+v", s, word, lang)
 
 	resp, err := http.Get(s)

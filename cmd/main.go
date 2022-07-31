@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/a-clap/dictionary/internal/logger"
-	"github.com/a-clap/dictionary/internal/merriamw"
+	"github.com/a-clap/dictionary/internal/merriamw/dict"
+	"github.com/a-clap/dictionary/internal/merriamw/thesa"
 	"github.com/a-clap/dictionary/internal/translate"
 	"github.com/a-clap/dictionary/internal/translate/mymemory"
 	"log"
@@ -11,32 +12,47 @@ import (
 )
 
 func main() {
+	l := logger.NewDevelopment()
+	thesa.InitLogger(l)
+	mymemory.InitLogger(l)
+	mymemory.InitLogger(l)
+
+	//dictTest()
+	//thtest()
+
+	mymemtest()
+}
+
+func thtest() {
 	thKey, ok := os.LookupEnv("MW_TH_KEY")
 	if !ok {
 		log.Fatalln("MW_TH_KEY not defined")
 	}
 
-	l := logger.NewDevelopment()
-	thesaurus := merriamw.NewThesaurus(thKey, &l)
-
-	t, err := thesaurus.Translate("good")
+	thesaurus := thesa.NewThesaurusDefault(thKey)
+	t, err := thesaurus.Translate("face")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("def =", t.ShortDef())
-	fmt.Println("synonyms =", t.Synonyms())
-	fmt.Println("antonyms = ", t.Antonyms())
+	for _, elem := range t {
+		fmt.Println("Text:", elem.Text())
+		fmt.Println("Shortdef:", elem.Definition())
+		fmt.Println("Synonyms:", elem.Synonyms())
+		fmt.Println("Antonyms:", elem.Antonyms())
+	}
 
-	dictTest()
-
-	mymemtest()
 }
 
 func mymemtest() {
-	l := logger.NewDevelopment()
-	mem := mymemory.New(&l)
-	brain := mem.Translate("mózg", translate.Polish)
-	fmt.Println(brain)
+	mem := mymemory.NewMyMemoryDefault()
+
+	data, err := mem.Translate("rack one's brain", translate.English)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	fmt.Println(data.Translated())
+	fmt.Println(data.Alternatives())
 
 }
 
@@ -46,15 +62,18 @@ func dictTest() {
 		log.Fatalln("MW_DICT_KEY not defined in env")
 	}
 
-	l := logger.NewDevelopment()
-	dict := merriamw.NewDictionary(dictKey, &l)
+	dict := dict.NewDictDefault(dictKey)
 
-	brain := "brain"
+	brain := "get"
 	data, err := dict.Translate(brain)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("shortdef for", brain, "are:\r\n", data.ShortDef())
-	fmt.Println(data.AudioFiles())
+	fmt.Printf("Found %v translations\n", len(data))
+	for _, elem := range data {
+		fmt.Printf("Text : %v\n", elem.Text())
+		fmt.Printf("Shortdef: %v\n", elem.Definition())
+		fmt.Printf("Pronunciation: %v\n", elem.Audio())
+	}
 }

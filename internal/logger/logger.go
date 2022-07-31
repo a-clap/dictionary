@@ -49,12 +49,12 @@ type Standard struct {
 }
 
 // NewDevelopment create new Standard logger with predefined time layout
-func NewDevelopment() Standard {
+func NewDevelopment() *Standard {
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.000")
 
 	logger, _ := cfg.Build()
-	return Standard{
+	return &Standard{
 		SugaredLogger: logger.Sugar(),
 	}
 }

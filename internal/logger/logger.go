@@ -43,18 +43,18 @@ func NewDummy() Dummy {
 	return Dummy{}
 }
 
-// Standard logger type, inherits from zap.SugaredLogger
-type Standard struct {
+// Development logger type, inherits from zap.SugaredLogger
+type Development struct {
 	*zap.SugaredLogger
 }
 
-// NewDevelopment create new Standard logger with predefined time layout
-func NewDevelopment() *Standard {
+// NewDevelopment create new Development logger with predefined time layout
+func NewDevelopment() *Development {
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.000")
 
 	logger, _ := cfg.Build()
-	return &Standard{
+	return &Development{
 		SugaredLogger: logger.Sugar(),
 	}
 }
@@ -79,7 +79,7 @@ func matchLevel(level Level) zapcore.Level {
 }
 
 // SetLevel dynamic set level of logging
-func (s *Standard) SetLevel(level Level) {
+func (s *Development) SetLevel(level Level) {
 	lvl := matchLevel(level)
 	s.SugaredLogger = s.SugaredLogger.Desugar().
 		WithOptions(zap.IncreaseLevel(lvl)).

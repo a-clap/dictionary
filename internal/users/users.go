@@ -9,10 +9,10 @@ type Users struct {
 	LoadSaver
 }
 
-type user struct {
-	name     string
-	password string
+func errorInterface(f string, err error) error {
+	return fmt.Errorf("error on interface %s: %#v", f, err)
 }
+
 type (
 	// LoadSaver realizes access to some kind of user database (may be even just map[string]string)
 	// Errors returned by interface should be ONLY related to internal IO errors
@@ -21,8 +21,8 @@ type (
 		Load(name string) (password string, err error)
 		// Save new user with password, overwrites user password, if already exists
 		Save(name, password string) error
-		// Exists allows to check whether user with name already exists
-		Exists(name string) (bool, error)
+		// NameExists allows to check whether user with name already exists
+		NameExists(name string) (bool, error)
 		// Remove user with provided name, if user doesn't exist, don't do anything
 		Remove(name string) error
 	}
@@ -33,6 +33,12 @@ func New(loadSaver LoadSaver) *Users {
 }
 
 func (u *Users) Add(name, password string) error {
+	if exists, err := u.Exists(name); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf("user %s already exist", name)
+	}
+
 	if len(name) == 0 || len(password) == 0 {
 		return fmt.Errorf("name and password must be provided")
 	}
@@ -43,16 +49,41 @@ func (u *Users) Add(name, password string) error {
 	}
 
 	if err := u.Save(name, string(hashedPassword)); err != nil {
-		return fmt.Errorf("interface error %#v", err)
+		return errorInterface("Save", err)
 	}
 
 	return nil
 }
 
 func (u *Users) Remove(name string) error {
-	return nil
+	if exists, err := u.Exists(name); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("user %s doesn't exists", name)
+	}
+
+	return u.Remove(name)
 }
 
-func (u *Users) Login(name, password string) {
+func (u *Users) Exists(name string) (bool, error) {
+	exists, err := u.NameExists(name)
+	if err != nil {
+		return false, errorInterface("NameExists", err)
+	}
+	return exists, nil
+}
+
+func (u *Users) Auth(name, password string) (bool, error) {
+	if exists, err := u.Exists(name); err != nil {
+		return false, err
+	} else if !exists {
+		return false, fmt.Errorf("user %s doesn't exists", name)
+	}
+
+	if hashPass, err := u.Load(name); err != nil {
+		return false, errorInterface("Load", err)
+	} else {
+		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(password)) == nil, nil
+	}
 
 }

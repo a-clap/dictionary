@@ -62,10 +62,10 @@ func dictTest() {
 		log.Fatalln("MW_DICT_KEY not defined in env")
 	}
 
-	dict := dict.NewDictDefault(dictKey)
+	dictDefault := dict.NewDictDefault(dictKey)
 
 	brain := "get"
-	data, err := dict.Translate(brain)
+	data, err := dictDefault.Translate(brain)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -14,7 +14,7 @@ func errorInterface(f string, err error) error {
 }
 
 type (
-	// LoadSaver realizes access to some kind of user database (may be even just map[string]string)
+	// LoadSaver realizes access to some kind of user database (maybe even just map[string]string)
 	// Errors returned by interface should be ONLY related to internal IO errors
 	LoadSaver interface {
 		// Load user password, if user doesn't exist, return ""

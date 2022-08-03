@@ -4,11 +4,12 @@
 
 package deepl
 
+type Translations struct {
+	DetectedSourceLanguage string `json:"detected_source_language"`
+	Text                   string `json:"text"`
+}
 type Word struct {
-	Translations []struct {
-		DetectedSourceLanguage string `json:"detected_source_language"`
-		Text                   string `json:"text"`
-	} `json:"translations"`
+	Translations []Translations `json:"translations"`
 }
 
 func (w Word) SourceLang() []string {

@@ -3,19 +3,21 @@ package mymemory
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/internal/translate"
 )
 
 type MyMemory struct {
 	GetWord
+	logger.Logger
 }
 
-func NewMyMemory(word GetWord) *MyMemory {
-	return &MyMemory{GetWord: word}
+func NewMyMemory(word GetWord, logger logger.Logger) *MyMemory {
+	return &MyMemory{GetWord: word, Logger: logger}
 }
 
-func NewMyMemoryDefault() *MyMemory {
-	return &MyMemory{NewDefault()}
+func NewMyMemoryDefault(logger logger.Logger) *MyMemory {
+	return NewMyMemory(NewDefault(), logger)
 }
 
 func (d *MyMemory) Translate(word string, lang translate.Language) (words *Word, err error) {
@@ -23,10 +25,10 @@ func (d *MyMemory) Translate(word string, lang translate.Language) (words *Word,
 	if err != nil {
 		return nil, fmt.Errorf("error on get: %v", err)
 	}
-	fmt.Println(string(data))
+
 	err = json.Unmarshal(data, &words)
 	if err != nil {
-		log.Errorf("error decoding json %v", err)
+		d.Errorf("error decoding json %v", err)
 		return
 	}
 	return

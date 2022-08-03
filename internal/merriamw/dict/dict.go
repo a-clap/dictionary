@@ -3,33 +3,38 @@ package dict
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/a-clap/dictionary/internal/logger"
 )
 
 type Dict struct {
 	GetWord
+	logger.Logger
 }
 
-func NewDictDefault(key string) *Dict {
-	return NewDict(NewDefault(key))
+func NewDictDefault(key string, logger logger.Logger) *Dict {
+	return NewDict(NewDefault(key), logger)
 }
 
-func NewDict(getWord GetWord) *Dict {
+func NewDict(getWord GetWord, logger logger.Logger) *Dict {
 	return &Dict{
 		GetWord: getWord,
+		Logger:  logger,
 	}
 }
 
 func (d *Dict) Translate(text string) (data []*Word, err error) {
 	resp, err := d.Get(text)
 	if err != nil {
-		log.Errorf("error on get %v", err)
+		d.Errorf("error on get %v", err)
 		return
 	}
 
 	err = json.Unmarshal(resp, &data)
 	if err != nil {
-		log.Debugf("error decoding json: %v", err)
-		log.Debugf("parsing as string, to get useful information...")
+		// This usually means, text wasn't found on dictionary.
+		// In that case, we will get an array of strings with suggestions
+		d.Debugf("error decoding json: %v", err)
+		d.Debugf("parsing as string, to get useful information...")
 
 		var errorInfo []string
 		errString := json.Unmarshal(resp, &errorInfo)

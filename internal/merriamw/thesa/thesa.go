@@ -3,18 +3,20 @@ package thesa
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/a-clap/dictionary/internal/logger"
 )
 
 type Thesaurus struct {
 	GetWord
+	logger.Logger
 }
 
-func NewThesaurus(getWord GetWord) *Thesaurus {
-	return &Thesaurus{GetWord: getWord}
+func NewThesaurus(getWord GetWord, logger logger.Logger) *Thesaurus {
+	return &Thesaurus{GetWord: getWord, Logger: logger}
 }
 
-func NewThesaurusDefault(key string) *Thesaurus {
-	return &Thesaurus{NewDefault(key)}
+func NewThesaurusDefault(key string, logger logger.Logger) *Thesaurus {
+	return NewThesaurus(NewDefault(key), logger)
 }
 
 func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
@@ -25,8 +27,8 @@ func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
 
 	err = json.Unmarshal(resp, &words)
 	if err != nil {
-		log.Debugf("error decoding json: %v", err)
-		log.Debugf("parsing as string, to get useful information...")
+		t.Debugf("error decoding json: %v", err)
+		t.Debugf("parsing as string, to get useful information...")
 
 		var errorInfo []string
 		errString := json.Unmarshal(resp, &errorInfo)

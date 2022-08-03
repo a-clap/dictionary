@@ -4,16 +4,15 @@ import (
 	"github.com/a-clap/dictionary/internal/logger"
 	dictionary "github.com/a-clap/dictionary/internal/merriamw/dict"
 	thesaurus "github.com/a-clap/dictionary/internal/merriamw/thesa"
-	"github.com/a-clap/dictionary/internal/translate"
-	"github.com/a-clap/dictionary/internal/translate/mymemory"
+	"github.com/a-clap/dictionary/internal/mymemory"
 	"os"
 )
 
-type Language translate.Language
+type Language mymemory.Language
 
 const (
-	Polish  Language = Language(translate.Polish)
-	English          = Language(translate.English)
+	Polish  Language = Language(mymemory.Polish)
+	English Language = Language(mymemory.English)
 )
 
 // Translation contains everything, what translator is able to give

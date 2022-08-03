@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/a-clap/dictionary/internal/logger"
-	"github.com/a-clap/dictionary/internal/translate"
 )
 
 type MyMemory struct {
@@ -20,7 +19,7 @@ func NewMyMemoryDefault(logger logger.Logger) *MyMemory {
 	return NewMyMemory(NewDefault(), logger)
 }
 
-func (d *MyMemory) Translate(word string, lang translate.Language) (words *Word, err error) {
+func (d *MyMemory) Translate(word string, lang Language) (words *Word, err error) {
 	data, err := d.Get(word, lang)
 	if err != nil {
 		return nil, fmt.Errorf("error on get: %v", err)

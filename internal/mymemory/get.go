@@ -3,13 +3,19 @@ package mymemory
 import (
 	"bytes"
 	"fmt"
-	"github.com/a-clap/dictionary/internal/translate"
 	"net/http"
 	"net/url"
 )
 
+type Language int64
+
+const (
+	Polish Language = iota
+	English
+)
+
 type GetWord interface {
-	Get(text string, lang translate.Language) ([]byte, error)
+	Get(text string, lang Language) ([]byte, error)
 }
 
 type Default struct {
@@ -19,12 +25,12 @@ func NewDefault() *Default {
 	return &Default{}
 }
 
-func query(text string, lang translate.Language) string {
+func query(text string, lang Language) string {
 	const GetUrl = "https://api.mymemory.translated.net/get?q=%s&langpair=%s"
 	text = url.PathEscape(text)
 
 	langPair := ""
-	if lang == translate.English {
+	if lang == English {
 		langPair = "en|pl"
 	} else {
 		langPair = "pl|en"
@@ -32,7 +38,7 @@ func query(text string, lang translate.Language) string {
 	return fmt.Sprintf(GetUrl, text, langPair)
 }
 
-func (d *Default) Get(text string, lang translate.Language) ([]byte, error) {
+func (d *Default) Get(text string, lang Language) ([]byte, error) {
 	response, err := http.Get(query(text, lang))
 	if err != nil {
 		return nil, fmt.Errorf("get failed %v", err)

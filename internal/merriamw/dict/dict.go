@@ -15,13 +15,13 @@ import (
 	"unicode"
 )
 
-type GetWord interface {
-	Get(text string) ([]byte, error)
-}
-
 type Dict struct {
 	GetWord
 	logger.Logger
+}
+
+type GetWord interface {
+	Get(text string) ([]byte, error)
 }
 
 type Pronunciation struct {

@@ -6,8 +6,8 @@ package translator
 
 import (
 	"github.com/a-clap/dictionary/internal/logger"
-	dictionary "github.com/a-clap/dictionary/internal/merriamw/dict"
-	thesaurus "github.com/a-clap/dictionary/internal/merriamw/thesa"
+	dictionary "github.com/a-clap/dictionary/internal/merriamw/dictionary"
+	thesaurus "github.com/a-clap/dictionary/internal/merriamw/thesaurus"
 	"github.com/a-clap/dictionary/internal/mymemory"
 	"os"
 )

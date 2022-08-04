@@ -36,7 +36,7 @@ type Suggestions struct {
 
 var (
 	translator struct {
-		dict *dictionary.Dict
+		dict *dictionary.Dictionary
 		thes *thesaurus.Thesaurus
 		mw   *mymemory.MyMemory
 	}

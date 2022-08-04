@@ -15,7 +15,7 @@ import (
 	"unicode"
 )
 
-type Dict struct {
+type Dictionary struct {
 	GetWord
 	logger.Logger
 }
@@ -25,28 +25,34 @@ type GetWord interface {
 }
 
 type Pronunciation struct {
-	pron     string
-	audioUrl string
+	PhoneticNotation string
+	Url              string
 }
 
 type DefaultGetWord struct {
 	key string
 }
 
-func NewDictDefault(key string, logger logger.Logger) *Dict {
-	return NewDict(NewDefaultGetWord(key), logger)
+type Suggestions struct {
+	Suggestions []string
 }
 
-func NewDict(getWord GetWord, logger logger.Logger) *Dict {
-	return &Dict{
+func NewDictDefault(key string, logger logger.Logger) *Dictionary {
+	return NewDictionary(NewDefaultGetWord(key), logger)
+}
+
+func NewDictionary(getWord GetWord, logger logger.Logger) *Dictionary {
+	return &Dictionary{
 		GetWord: getWord,
 		Logger:  logger,
 	}
 }
 
-func (d *Dict) Translate(text string) (data []*Word, err error) {
+// Definition return possible slice of Definition to text.
+func (d Dictionary) Definition(text string) (data []*Definition, err error) {
 	resp, err := d.Get(text)
 	if err != nil {
+		err = fmt.Errorf("error on get %w", err)
 		d.Errorf("error on get %v", err)
 		return
 	}
@@ -68,30 +74,34 @@ func (d *Dict) Translate(text string) (data []*Word, err error) {
 	return
 }
 
-func (w *Word) Definition() []string {
+// Definition simplified access to definition of certain word
+func (w *Definition) Definition() []string {
 	return w.Shortdef
 }
 
-func (w *Word) Text() string {
+// Text returns word, which translation belongs to
+func (w *Definition) Text() string {
 	// MerriamW sometimes adds unique number to each word after ":". We can get this unique number and associate words as homographs
 	return strings.Split(w.Meta.Id, ":")[0]
 }
 
-func (w *Word) Examples() []string {
-	examples := make([]string, 0, len(w.Suppl.Examples))
-	for _, elem := range w.Suppl.Examples {
-		examples = append(examples, elem.T)
+// Examples returns slice of strings with usage of certain word
+func (w *Definition) Examples() []string {
+	examples := make([]string, len(w.Suppl.Examples))
+	for i, elem := range w.Suppl.Examples {
+		examples[i] = elem.T
 	}
 	return examples
 }
 
-func (w *Word) Audio() []Pronunciation {
+// Audio returns possible pronunciations for word
+func (w *Definition) Audio() []Pronunciation {
 	const AudioUrl = `https://media.merriam-webster.com/audio/prons/en/us/mp3/%s/%s.mp3`
 
 	prons := make([]Pronunciation, 0, len(w.Hwi.Prs))
 	for _, elem := range w.Hwi.Prs {
 		pron := Pronunciation{
-			pron: elem.Mw,
+			PhoneticNotation: elem.Mw,
 		}
 
 		filename := elem.Sound.Audio
@@ -106,25 +116,29 @@ func (w *Word) Audio() []Pronunciation {
 			} else {
 				dir = string(filename[0])
 			}
-			pron.audioUrl = fmt.Sprintf(AudioUrl, dir, filename)
+			pron.Url = fmt.Sprintf(AudioUrl, dir, filename)
 		}
 		prons = append(prons, pron)
 	}
 	return prons
 }
 
-func (w *Word) IsOffensive() bool {
+// IsOffensive returns true, whether word is considered as offensive
+func (w *Definition) IsOffensive() bool {
 	return w.Meta.Offensive
 }
 
-func (w *Word) Function() string {
+// Function returns the word functions in a sentence, e.x. noun, adj etc
+func (w *Definition) Function() string {
 	return w.Fl
 }
 
+// NewDefaultGetWord constructor for standard API access
 func NewDefaultGetWord(key string) *DefaultGetWord {
 	return &DefaultGetWord{key: key}
 }
 
+// query returns prepared URL for Get
 func (d DefaultGetWord) query(text string) string {
 	const GetUrl = "https://www.dictionaryapi.com/api/v3/references/collegiate/json/%s?key=%s"
 
@@ -132,6 +146,7 @@ func (d DefaultGetWord) query(text string) string {
 	return fmt.Sprintf(GetUrl, text, d.key)
 }
 
+// Get fulfills GetWord interface
 func (d DefaultGetWord) Get(text string) ([]byte, error) {
 	response, err := http.Get(d.query(text))
 	if err != nil {
@@ -151,9 +166,9 @@ func (d DefaultGetWord) Get(text string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Word - structured json, which is received from MerriamWebster, see https://www.dictionaryapi.com/products/json#sec-2
+// Definition - structured json, which is received from MerriamWebster, see https://www.dictionaryapi.com/products/json#sec-2
 // Deliberately, there are a lot of tags commented - they are not needed by package, however left them as maybe required someday
-type Word struct {
+type Definition struct {
 	Meta struct {
 		Id   string `json:"id"`
 		Uuid string `json:"uuid"`

@@ -14,7 +14,7 @@ func main() {
 		log.Fatalf("DEEPL_KEY not found in env")
 	}
 	d := deepl.NewDeepLDefault(key, log)
-	w, err := d.Translate("i like dumplings", deepl.English, deepl.Polish)
+	w, err := d.Translate("i like dumplings", deepl.SrcEnglish, deepl.TarPolish)
 	if err != nil {
 		log.Fatalf("%#v", err)
 	}

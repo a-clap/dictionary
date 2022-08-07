@@ -41,7 +41,7 @@ func TestDeepL_Translate(t *testing.T) {
 	}
 
 	type in struct {
-		acc  deepl.Access
+		acc  deepl.Deepler
 		text string
 		src  deepl.SourceLang
 		dst  deepl.TargetLang
@@ -69,8 +69,8 @@ func TestDeepL_Translate(t *testing.T) {
 						generateErr: true,
 					},
 					text: "brain",
-					src:  deepl.English,
-					dst:  deepl.Polish,
+					src:  deepl.SrcEnglish,
+					dst:  deepl.TarPolish,
 				},
 				out: out{
 					w:        nil,
@@ -89,13 +89,13 @@ func TestDeepL_Translate(t *testing.T) {
 						generateErr: false,
 					},
 					text: "brain",
-					src:  deepl.English,
-					dst:  deepl.Polish,
+					src:  deepl.SrcEnglish,
+					dst:  deepl.TarPolish,
 				},
 				out: out{
 					w: &deepl.Word{Translations: []deepl.Translations{
 						{
-							DetectedSourceLanguage: string(deepl.English),
+							DetectedSourceLanguage: string(deepl.SrcEnglish),
 							Text:                   "mózg",
 						},
 					},
@@ -109,15 +109,15 @@ func TestDeepL_Translate(t *testing.T) {
 			name: "direct call EN -> PL",
 			args: args{
 				in: in{
-					acc:  deepl.NewAccessDefault(api, logger.NewDummy()),
+					acc:  deepl.NewDeeplerDefault(api, logger.NewDummy()),
 					text: "brain",
-					src:  deepl.English,
-					dst:  deepl.Polish,
+					src:  deepl.SrcEnglish,
+					dst:  deepl.TarPolish,
 				},
 				out: out{
 					w: &deepl.Word{Translations: []deepl.Translations{
 						{
-							DetectedSourceLanguage: string(deepl.English),
+							DetectedSourceLanguage: string(deepl.SrcEnglish),
 							Text:                   "mózg",
 						},
 					}},
@@ -129,15 +129,15 @@ func TestDeepL_Translate(t *testing.T) {
 			name: "direct call PL -> EN",
 			args: args{
 				in: in{
-					acc:  deepl.NewAccessDefault(api, logger.NewDummy()),
+					acc:  deepl.NewDeeplerDefault(api, logger.NewDummy()),
 					text: "mózg",
-					src:  deepl.Polish,
-					dst:  deepl.English,
+					src:  deepl.SrcPolish,
+					dst:  deepl.TarEnglishBritish,
 				},
 				out: out{
 					w: &deepl.Word{Translations: []deepl.Translations{
 						{
-							DetectedSourceLanguage: string(deepl.Polish),
+							DetectedSourceLanguage: string(deepl.SrcPolish),
 							Text:                   "brain",
 						},
 					}},

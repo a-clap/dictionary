@@ -103,7 +103,7 @@ func TestDictionary_Definition(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("%s: Definition() error = %v, wantErr %v", t.Name(), err, tt.wantErr)
 			}
-			// If we wants error, then rest of testing may fail because of "index out of range"
+			// If we want error, then rest of testing may fail because of "index out of range"
 			if tt.wantErr {
 				if gotData != nil {
 					t.Fatalf("%s: Definition() gotData = %#v, want %v", t.Name(), gotData, nil)

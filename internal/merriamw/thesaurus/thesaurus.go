@@ -14,24 +14,24 @@ import (
 )
 
 type Thesaurus struct {
-	GetWord
+	Thesauruser
 	logger.Logger
 }
 
-type GetWord interface {
+type Thesauruser interface {
 	Get(text string) ([]byte, error)
 }
 
-type DefaultGetWord struct {
+type DefaultThesauruser struct {
 	key string
 }
 
-func NewThesaurus(getWord GetWord, logger logger.Logger) *Thesaurus {
-	return &Thesaurus{GetWord: getWord, Logger: logger}
+func NewThesaurus(getWord Thesauruser, logger logger.Logger) *Thesaurus {
+	return &Thesaurus{Thesauruser: getWord, Logger: logger}
 }
 
 func NewThesaurusDefault(key string, logger logger.Logger) *Thesaurus {
-	return NewThesaurus(NewDefaultGetWord(key), logger)
+	return NewThesaurus(NewDefaultThesauruser(key), logger)
 }
 
 func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
@@ -55,34 +55,43 @@ func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
 	return
 }
 
+// Definition simplified access to definition of certain Word
 func (w *Word) Definition() []string {
 	return w.Shortdef
 }
 
+// Text returns word, which translation belongs to
 func (w *Word) Text() string {
 	return w.Meta.Id
 }
 
+// Synonyms simplified access to synonyms
 func (w *Word) Synonyms() [][]string {
 	return w.Meta.Syns
 }
+
+// Antonyms simplified access to antonyms
 func (w *Word) Antonyms() [][]string {
 	return w.Meta.Ants
 }
 
+// IsOffensive returns true, whether word is considered as offensive
 func (w *Word) IsOffensive() bool {
 	return w.Meta.Offensive
 }
 
+// Function returns the word functions in a sentence, e.x. noun, adj etc
 func (w *Word) Function() string {
 	return w.Fl
 }
 
-func NewDefaultGetWord(key string) *DefaultGetWord {
-	return &DefaultGetWord{key: key}
+// NewDefaultThesauruser constructor for default API access
+func NewDefaultThesauruser(key string) *DefaultThesauruser {
+	return &DefaultThesauruser{key: key}
 }
 
-func (d DefaultGetWord) query(text string) string {
+// query returns prepared URL for Get
+func (d DefaultThesauruser) query(text string) string {
 	const GetUrl = `https://www.dictionaryapi.com/api/v3/references/thesaurus/json/%s?key=%s`
 	text = url.PathEscape(text)
 
@@ -90,7 +99,8 @@ func (d DefaultGetWord) query(text string) string {
 
 }
 
-func (d DefaultGetWord) Get(text string) ([]byte, error) {
+// Get fulfills Thesauruser interface
+func (d DefaultThesauruser) Get(text string) ([]byte, error) {
 	response, err := http.Get(d.query(text))
 	if err != nil {
 		return nil, fmt.Errorf("get failed %v", err)
@@ -109,6 +119,8 @@ func (d DefaultGetWord) Get(text string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Word - structured json, which is received from MerriamWebster, see https://www.dictionaryapi.com/products/json#sec-3
+// Deliberately, there are a lot of tags commented - they are not needed by package, however left them as maybe required someday
 type Word struct {
 	Meta struct {
 		Id string `json:"id"`

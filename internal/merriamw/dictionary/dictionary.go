@@ -16,11 +16,11 @@ import (
 )
 
 type Dictionary struct {
-	GetWord
+	Definitioner
 	logger.Logger
 }
 
-type GetWord interface {
+type Definitioner interface {
 	Get(text string) ([]byte, error)
 }
 
@@ -29,7 +29,7 @@ type Pronunciation struct {
 	Url              string
 }
 
-type DefaultGetWord struct {
+type DefaultGetDefinition struct {
 	key string
 }
 
@@ -38,18 +38,20 @@ type Suggestions struct {
 }
 
 func NewDictDefault(key string, logger logger.Logger) *Dictionary {
-	return NewDictionary(NewDefaultGetWord(key), logger)
+	return NewDictionary(NewDefaultGetDefinition(key), logger)
 }
 
-func NewDictionary(getWord GetWord, logger logger.Logger) *Dictionary {
+func NewDictionary(getDefinition Definitioner, logger logger.Logger) *Dictionary {
 	return &Dictionary{
-		GetWord: getWord,
-		Logger:  logger,
+		Definitioner: getDefinition,
+		Logger:       logger,
 	}
 }
 
-// Definition return possible slice of Definition to text.
-func (d Dictionary) Definition(text string) (data []*Definition, err error) {
+// Definition return possible slice of Definition for passed argument.
+// If it couldn't find exact Definition, function may returned slice with Suggestions - if there is a typo in word.
+// Otherwise error
+func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Suggestions, err error) {
 	resp, err := d.Get(text)
 	if err != nil {
 		err = fmt.Errorf("error on get %w", err)
@@ -64,12 +66,16 @@ func (d Dictionary) Definition(text string) (data []*Definition, err error) {
 		d.Debugf("error decoding json: %v", err)
 		d.Debugf("parsing as string, to get useful information...")
 
-		var errorInfo []string
-		errString := json.Unmarshal(resp, &errorInfo)
+		suggestions = &Suggestions{Suggestions: []string{}}
+		errString := json.Unmarshal(resp, &suggestions.Suggestions)
 		if errString == nil {
-			err = fmt.Errorf("%v, additional info %v", err, errorInfo)
+			err = nil
+			d.Debugf("...success!")
+		} else {
+			suggestions = nil
+			err = fmt.Errorf("%w %v", err, errString)
+			d.Debugf("...failure!")
 		}
-		return
 	}
 	return
 }
@@ -98,8 +104,8 @@ func (w *Definition) Examples() []string {
 func (w *Definition) Audio() []Pronunciation {
 	const AudioUrl = `https://media.merriam-webster.com/audio/prons/en/us/mp3/%s/%s.mp3`
 
-	prons := make([]Pronunciation, 0, len(w.Hwi.Prs))
-	for _, elem := range w.Hwi.Prs {
+	prons := make([]Pronunciation, len(w.Hwi.Prs))
+	for i, elem := range w.Hwi.Prs {
 		pron := Pronunciation{
 			PhoneticNotation: elem.Mw,
 		}
@@ -118,7 +124,7 @@ func (w *Definition) Audio() []Pronunciation {
 			}
 			pron.Url = fmt.Sprintf(AudioUrl, dir, filename)
 		}
-		prons = append(prons, pron)
+		prons[i] = pron
 	}
 	return prons
 }
@@ -133,21 +139,21 @@ func (w *Definition) Function() string {
 	return w.Fl
 }
 
-// NewDefaultGetWord constructor for standard API access
-func NewDefaultGetWord(key string) *DefaultGetWord {
-	return &DefaultGetWord{key: key}
+// NewDefaultGetDefinition constructor for standard API access
+func NewDefaultGetDefinition(key string) *DefaultGetDefinition {
+	return &DefaultGetDefinition{key: key}
 }
 
 // query returns prepared URL for Get
-func (d DefaultGetWord) query(text string) string {
+func (d DefaultGetDefinition) query(text string) string {
 	const GetUrl = "https://www.dictionaryapi.com/api/v3/references/collegiate/json/%s?key=%s"
 
 	text = url.PathEscape(text)
 	return fmt.Sprintf(GetUrl, text, d.key)
 }
 
-// Get fulfills GetWord interface
-func (d DefaultGetWord) Get(text string) ([]byte, error) {
+// Get fulfills Definitioner interface
+func (d DefaultGetDefinition) Get(text string) ([]byte, error) {
 	response, err := http.Get(d.query(text))
 	if err != nil {
 		return nil, fmt.Errorf("get failed %v", err)

@@ -84,9 +84,9 @@ func TestTranslator_Get(t *testing.T) {
 				Dictionary: &translator.DictionaryTranslate{
 					Defs: []translator.Definition{
 						{
-							IsOffensive: false,
-							Function:    "noun",
-							Examples:    []string{},
+							Offensive: false,
+							Function:  "noun",
+							Examples:  []string{},
 							Definition: []string{
 								"the portion of the vertebrate central nervous system enclosed in the skull and continuous with the spinal cord through the foramen magnum that is composed of neurons and supporting and nutritive structures (such as glia) and that integrates sensory information from inside and outside the body in controlling autonomic function (such as heartbeat and respiration), in coordinating and directing correlated motor responses, and in the process of learning",
 								"a nervous center in invertebrates comparable in position and function to the vertebrate brain",
@@ -100,9 +100,9 @@ func TestTranslator_Get(t *testing.T) {
 							},
 						},
 						{
-							IsOffensive: false,
-							Function:    "verb",
-							Examples:    []string{},
+							Offensive: false,
+							Function:  "verb",
+							Examples:  []string{},
 							Definition: []string{
 								"to kill by smashing the skull",
 								"to hit on the head",

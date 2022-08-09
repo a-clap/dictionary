@@ -19,11 +19,11 @@ type DeeplTranslate struct {
 	Text string `json:"text"`
 }
 type Definition struct {
-	IsOffensive bool
-	Function    string
-	Examples    []string
-	Definition  []string
-	Audio       []dictionary.Pronunciation
+	Offensive  bool                       `json:"offensive"`
+	Function   string                     `json:"function"`
+	Examples   []string                   `json:"examples"`
+	Definition []string                   `json:"definition"`
+	Audio      []dictionary.Pronunciation `json:"audio"`
 }
 
 type DictionaryTranslate struct {
@@ -108,11 +108,11 @@ func (s *standard) getDefinitions(to deepl.TargetLang, deeplTranslate *[]DeeplTr
 				continue
 			}
 			dictTranslate := Definition{
-				IsOffensive: dict.IsOffensive(),
-				Function:    dict.Function(),
-				Examples:    dict.Examples(),
-				Definition:  dict.Definition(),
-				Audio:       dict.Audio(),
+				Offensive:  dict.IsOffensive(),
+				Function:   dict.Function(),
+				Examples:   dict.Examples(),
+				Definition: dict.Definition(),
+				Audio:      dict.Audio(),
 			}
 
 			dictTranslates.Defs = append(dictTranslates.Defs, dictTranslate)

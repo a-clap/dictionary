@@ -123,7 +123,7 @@ func TestDictionary_Definition(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(gotData[0].Text(), tt.wantData.text) {
-				t.Fatalf("%s: Definition() gotData.Text() = %#v, want %v", t.Name(), gotData[0].Text(), tt.wantData.text)
+				t.Fatalf("%s: Definition() gotData.Translation() = %#v, want %v", t.Name(), gotData[0].Text(), tt.wantData.text)
 			}
 		})
 	}

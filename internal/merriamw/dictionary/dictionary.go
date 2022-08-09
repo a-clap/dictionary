@@ -61,6 +61,7 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 
 	err = json.Unmarshal(resp, &data)
 	if err != nil {
+		data = nil
 		// This usually means, text wasn't found on dictionary.
 		// In that case, we will get an array of strings with suggestions
 		d.Debugf("error decoding json: %v", err)

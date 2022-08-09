@@ -112,17 +112,25 @@ func (d *DeepL) Translate(text string, sourceLang SourceLang, targetLang TargetL
 func (w Word) SourceLang() []string {
 	s := make([]string, len(w.Translations))
 	for i, elem := range w.Translations {
-		s[i] = elem.DetectedSourceLanguage
+		s[i] = elem.SourceLang()
 	}
 	return s
 }
 
-func (w Word) Text() []string {
+func (w Word) Translation() []string {
 	s := make([]string, len(w.Translations))
 	for i, elem := range w.Translations {
-		s[i] = elem.Text
+		s[i] = elem.Translation()
 	}
 	return s
+}
+
+func (t Translations) Translation() string {
+	return t.Text
+}
+
+func (t Translations) SourceLang() string {
+	return t.DetectedSourceLanguage
 }
 
 type DeeplerDefault struct {

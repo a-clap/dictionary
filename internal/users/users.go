@@ -16,7 +16,7 @@ type Users struct {
 
 var (
 	ErrExist    = errors.New("user already exists")
-	ErrNotExist = errors.New("user doest not exist")
+	ErrNotExist = errors.New("user doesn't not exist")
 	ErrInvalid  = errors.New("invalid argument")
 	ErrIO       = errors.New("io error")
 	ErrHash     = errors.New("hash error") // tried to generate this error during tests, didn't happen

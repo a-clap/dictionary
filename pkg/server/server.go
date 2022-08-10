@@ -5,22 +5,18 @@
 package server
 
 import (
+	"github.com/a-clap/dictionary/internal/users"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type Server struct {
 	*gin.Engine
+	u *users.Users
 }
 
-func (s *Server) Translate() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.String(http.StatusOK, "%s", "mózg")
+func New(u *users.Users) *Server {
+	return &Server{
+		Engine: gin.Default(),
+		u:      u,
 	}
-}
-
-func New() *Server {
-	s := &Server{gin.Default()}
-	s.routes()
-	return s
 }

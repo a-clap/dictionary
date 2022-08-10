@@ -91,6 +91,42 @@ func TestUsers_Add(t *testing.T) {
 			},
 		},
 		{
+			name:   "invalid argument: password",
+			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			io: []argsErr{
+				{
+					name:    "adam",
+					pass:    "",
+					err:     true,
+					errType: users.ErrInvalid,
+				},
+			},
+		},
+		{
+			name:   "invalid argument: name",
+			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			io: []argsErr{
+				{
+					name:    "",
+					pass:    "1",
+					err:     true,
+					errType: users.ErrInvalid,
+				},
+			},
+		},
+		{
+			name:   "invalid argument: pass and name",
+			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			io: []argsErr{
+				{
+					name:    "",
+					pass:    "",
+					err:     true,
+					errType: users.ErrInvalid,
+				},
+			},
+		},
+		{
 			name:   "handle internal IO error",
 			fields: fields{&LoadSaverMock{users: map[string]string{}, returnErr: true}},
 			io: []argsErr{
@@ -109,7 +145,7 @@ func TestUsers_Add(t *testing.T) {
 			for _, v := range tt.io {
 				err := u.Add(v.name, v.pass)
 				if (err != nil) != v.err {
-					t.Errorf("%s: Add() error = %v, wantErr %v", tt.name, err, v.err)
+					t.Fatalf("%s: Add() error = %v, wantErr %v", tt.name, err, v.err)
 				}
 				// Check error type, if error needed
 				if v.err {
@@ -150,14 +186,14 @@ func TestUsers_Remove(t *testing.T) {
 		LoadSaver users.LoadSaver
 	}
 	type io struct {
-		name string
-		err  bool
+		name    string
+		err     bool
+		errType error
 	}
 	tests := []struct {
 		name   string
 		fields fields
-
-		args []io
+		args   []io
 	}{
 		{
 			name: "handle io error",
@@ -167,8 +203,9 @@ func TestUsers_Remove(t *testing.T) {
 			}},
 			args: []io{
 				{
-					name: "adam",
-					err:  true,
+					name:    "adam",
+					err:     true,
+					errType: users.ErrIO,
 				},
 			},
 		},
@@ -180,8 +217,9 @@ func TestUsers_Remove(t *testing.T) {
 			}},
 			args: []io{
 				{
-					name: "not_exists",
-					err:  true,
+					name:    "not_exists",
+					err:     true,
+					errType: users.ErrNotExist,
 				},
 			},
 		},
@@ -200,9 +238,17 @@ func TestUsers_Remove(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			u := users.New(tt.fields.LoadSaver)
 			for _, v := range tt.args {
-				if err := u.Remove(v.name); (err != nil) != v.err {
-					t.Errorf("%s: Remove() error = %v, wantErr %v", tt.name, err, v.err)
+				err := u.Remove(v.name)
+				if (err != nil) != v.err {
+					t.Fatalf("%s: Remove() error = %v, wantErr %v", tt.name, err, v.err)
 				}
+				// Check error type, if error needed
+				if v.err {
+					if !errors.Is(err, v.errType) {
+						t.Errorf("%s: Add() error = %v, errType %v", tt.name, err, v.errType)
+					}
+				}
+
 			}
 		})
 	}
@@ -217,6 +263,7 @@ func TestUsers_Auth(t *testing.T) {
 		password string
 		auth     bool
 		err      bool
+		errType  error
 	}
 	tests := []struct {
 		name   string
@@ -235,6 +282,7 @@ func TestUsers_Auth(t *testing.T) {
 					password: "also",
 					auth:     false,
 					err:      true,
+					errType:  users.ErrIO,
 				},
 			},
 		},
@@ -271,6 +319,12 @@ func TestUsers_Auth(t *testing.T) {
 				auth, err := u.Auth(args.name, args.password)
 				if (err != nil) != args.err {
 					t.Errorf("%s: Auth() error = %#v, wantErr %v", tt.name, err, args.err)
+				}
+				// Check error type, if error needed
+				if args.err {
+					if !errors.Is(err, args.errType) {
+						t.Errorf("%s: Add() error = %v, errType %v", tt.name, err, args.errType)
+					}
 				}
 				if auth != args.auth {
 					t.Errorf("%s: Auth() got %v, want %v", tt.name, auth, args.auth)

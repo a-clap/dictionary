@@ -11,7 +11,7 @@ import (
 )
 
 type Users struct {
-	LoadSaver
+	i LoadSaver
 }
 
 var (
@@ -19,7 +19,7 @@ var (
 	ErrNotExist = errors.New("user doest not exist")
 	ErrInvalid  = errors.New("invalid argument")
 	ErrIO       = errors.New("io error")
-	ErrHash     = errors.New("hash error")
+	ErrHash     = errors.New("hash error") // tried to generate this error during tests, didn't happen
 )
 
 type (
@@ -38,7 +38,7 @@ type (
 )
 
 func New(loadSaver LoadSaver) *Users {
-	return &Users{loadSaver}
+	return &Users{i: loadSaver}
 }
 
 func (u *Users) Add(name, password string) error {
@@ -49,16 +49,16 @@ func (u *Users) Add(name, password string) error {
 	}
 
 	if len(name) == 0 || len(password) == 0 {
-		return fmt.Errorf("name and password must be provided")
+		return fmt.Errorf("%w: name and password must be provided", ErrInvalid)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("%v %w", err, ErrHash)
+		return fmt.Errorf("%w %v", ErrHash, err)
 	}
 
-	if err := u.Save(name, string(hashedPassword)); err != nil {
-		return fmt.Errorf("save %v %w", err, ErrIO)
+	if err := u.save(name, string(hashedPassword)); err != nil {
+		return err
 	}
 
 	return nil
@@ -68,31 +68,61 @@ func (u *Users) Remove(name string) error {
 	if exists, err := u.Exists(name); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("%s %w", name, ErrNotExist)
+		return fmt.Errorf("%w %s", ErrNotExist, name)
 	}
 
 	return u.Remove(name)
 }
 
 func (u *Users) Exists(name string) (bool, error) {
-	exists, err := u.NameExists(name)
-	if err != nil {
-		return false, fmt.Errorf("nameExists %s %w", name, ErrIO)
-	}
-	return exists, nil
+	return u.nameExists(name)
 }
 
 func (u *Users) Auth(name, password string) (bool, error) {
 	if exists, err := u.Exists(name); err != nil {
 		return false, err
 	} else if !exists {
-		return false, fmt.Errorf("%s %w", name, ErrNotExist)
+		return false, fmt.Errorf("%w %s", ErrNotExist, name)
 	}
 
-	if hashPass, err := u.Load(name); err != nil {
-		return false, fmt.Errorf("load %w", ErrIO)
+	if hashPass, err := u.load(name); err != nil {
+		return false, err
 	} else {
 		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(password)) == nil, nil
 	}
+}
 
+// load is wrapper for interface call Load, returns appropriate wrapped error
+func (u *Users) load(name string) (password string, err error) {
+	password, err = u.i.Load(name)
+	if err != nil {
+		return "", fmt.Errorf("%w: Load: name %s, error: %v", ErrIO, name, err)
+	}
+	return password, err
+}
+
+// save is wrapper for interface call Save, returns appropriate wrapped error
+func (u *Users) save(name, password string) error {
+	if err := u.i.Save(name, password); err != nil {
+		return fmt.Errorf("%w: Save: name %s, error: %v", ErrIO, name, err)
+	}
+	return nil
+}
+
+// nameExists is wrapper for interface call NameExists, returns appropriate wrapped error
+func (u *Users) nameExists(name string) (bool, error) {
+	exist, err := u.i.NameExists(name)
+	if err != nil {
+		return false, fmt.Errorf("%w: NameExists: %s, error: %v", ErrIO, name, err)
+	}
+	return exist, err
+}
+
+// remove is wrapper for interface call Remove, returns appropriate wrapped error
+func (u *Users) remove(name string) error {
+	err := u.i.Remove(name)
+	if err != nil {
+		return fmt.Errorf("%w: Remove: %s, error: %v", ErrIO, name, err)
+	}
+	return err
 }

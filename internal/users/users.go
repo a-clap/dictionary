@@ -5,6 +5,7 @@
 package users
 
 import (
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,9 +14,13 @@ type Users struct {
 	LoadSaver
 }
 
-func errorInterface(f string, err error) error {
-	return fmt.Errorf("error on interface %s: %#v", f, err)
-}
+var (
+	ErrExist    = errors.New("user already exists")
+	ErrNotExist = errors.New("user doest not exist")
+	ErrInvalid  = errors.New("invalid argument")
+	ErrIO       = errors.New("io error")
+	ErrHash     = errors.New("hash error")
+)
 
 type (
 	// LoadSaver realizes access to some kind of user database (maybe even just map[string]string)
@@ -40,7 +45,7 @@ func (u *Users) Add(name, password string) error {
 	if exists, err := u.Exists(name); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("user %s already exist", name)
+		return fmt.Errorf("%s %w", name, ErrExist)
 	}
 
 	if len(name) == 0 || len(password) == 0 {
@@ -49,11 +54,11 @@ func (u *Users) Add(name, password string) error {
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("error on bcrypt %#v", err)
+		return fmt.Errorf("%v %w", err, ErrHash)
 	}
 
 	if err := u.Save(name, string(hashedPassword)); err != nil {
-		return errorInterface("Save", err)
+		return fmt.Errorf("save %v %w", err, ErrIO)
 	}
 
 	return nil
@@ -63,7 +68,7 @@ func (u *Users) Remove(name string) error {
 	if exists, err := u.Exists(name); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("user %s doesn't exists", name)
+		return fmt.Errorf("%s %w", name, ErrNotExist)
 	}
 
 	return u.Remove(name)
@@ -72,7 +77,7 @@ func (u *Users) Remove(name string) error {
 func (u *Users) Exists(name string) (bool, error) {
 	exists, err := u.NameExists(name)
 	if err != nil {
-		return false, errorInterface("NameExists", err)
+		return false, fmt.Errorf("nameExists %s %w", name, ErrIO)
 	}
 	return exists, nil
 }
@@ -81,11 +86,11 @@ func (u *Users) Auth(name, password string) (bool, error) {
 	if exists, err := u.Exists(name); err != nil {
 		return false, err
 	} else if !exists {
-		return false, fmt.Errorf("user %s doesn't exists", name)
+		return false, fmt.Errorf("%s %w", name, ErrNotExist)
 	}
 
 	if hashPass, err := u.Load(name); err != nil {
-		return false, errorInterface("Load", err)
+		return false, fmt.Errorf("load %w", ErrIO)
 	} else {
 		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(password)) == nil, nil
 	}

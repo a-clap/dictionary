@@ -5,6 +5,7 @@
 package users_test
 
 import (
+	"errors"
 	"fmt"
 	"github.com/a-clap/dictionary/internal/users"
 	"testing"
@@ -55,9 +56,10 @@ func TestUsers_Add(t *testing.T) {
 		LoadSaver users.LoadSaver
 	}
 	type argsErr struct {
-		name string
-		pass string
-		err  bool
+		name    string
+		pass    string
+		err     bool
+		errType error
 	}
 	tests := []struct {
 		name   string
@@ -68,9 +70,10 @@ func TestUsers_Add(t *testing.T) {
 			name:   "add single user",
 			fields: fields{&LoadSaverMock{users: map[string]string{}}},
 			io: []argsErr{{
-				name: "adam",
-				pass: "password",
-				err:  false,
+				name:    "adam",
+				pass:    "password",
+				err:     false,
+				errType: nil,
 			}},
 		},
 		{
@@ -80,9 +83,10 @@ func TestUsers_Add(t *testing.T) {
 			}}},
 			io: []argsErr{
 				{
-					name: "adam",
-					pass: "password",
-					err:  true,
+					name:    "adam",
+					pass:    "password",
+					err:     true,
+					errType: users.ErrExist,
 				},
 			},
 		},
@@ -91,9 +95,10 @@ func TestUsers_Add(t *testing.T) {
 			fields: fields{&LoadSaverMock{users: map[string]string{}, returnErr: true}},
 			io: []argsErr{
 				{
-					name: "adam",
-					pass: "password",
-					err:  true,
+					name:    "adam",
+					pass:    "password",
+					err:     true,
+					errType: users.ErrIO,
 				},
 			},
 		},
@@ -102,9 +107,17 @@ func TestUsers_Add(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			u := users.New(tt.fields.LoadSaver)
 			for _, v := range tt.io {
-				if err := u.Add(v.name, v.pass); (err != nil) != v.err {
+				err := u.Add(v.name, v.pass)
+				if (err != nil) != v.err {
 					t.Errorf("%s: Add() error = %v, wantErr %v", tt.name, err, v.err)
 				}
+				// Check error type, if error needed
+				if v.err {
+					if !errors.Is(err, v.errType) {
+						t.Errorf("%s: Add() error = %v, errType %v", tt.name, err, v.errType)
+					}
+				}
+
 			}
 		})
 	}

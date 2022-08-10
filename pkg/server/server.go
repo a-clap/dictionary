@@ -15,8 +15,11 @@ type Server struct {
 }
 
 func New(u *users.Users) *Server {
-	return &Server{
+	s := &Server{
 		Engine: gin.Default(),
 		u:      u,
 	}
+
+	s.routes()
+	return s
 }

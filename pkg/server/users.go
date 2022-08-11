@@ -6,13 +6,18 @@ package server
 
 import (
 	"errors"
+	"github.com/a-clap/dictionary/internal/users"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"time"
 )
 
-var jwtTestKey []byte = []byte("test key")
+type UsersInterface interface {
+	users.Store
+	TokenExpireTime() time.Duration
+	TokenKey() []byte
+}
 
 type User struct {
 	Name     string `json:"name"`
@@ -26,6 +31,27 @@ type User struct {
 var (
 	ErrExpired = errors.New("token expired")
 )
+
+func (s *Server) auth() gin.HandlerFunc {
+	return func(context *gin.Context) {
+		token := context.GetHeader("Authorization")
+		if len(token) == 0 {
+			context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "request doesn't contain an authorization token"})
+			return
+		}
+		var user User
+		ok, err := user.Validate(token, s.h.TokenKey())
+		if err != nil {
+			context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+		if !ok {
+			context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized access"})
+			return
+		}
+		context.Next()
+	}
+}
 
 func (s *Server) addUser() gin.HandlerFunc {
 	return func(context *gin.Context) {
@@ -61,7 +87,7 @@ func (s *Server) loginUser() gin.HandlerFunc {
 		}
 
 		// All good, generate token
-		token, err := user.Token(30 * time.Minute)
+		token, err := user.Token(s.h.TokenExpireTime(), s.h.TokenKey())
 		if err != nil {
 			context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -70,7 +96,7 @@ func (s *Server) loginUser() gin.HandlerFunc {
 	}
 }
 
-func (u *User) Token(duration time.Duration) (string, error) {
+func (u *User) Token(duration time.Duration, key []byte) (string, error) {
 	expires := time.Now().Add(duration)
 	u.claims.Name = u.Name
 	u.claims.RegisteredClaims = jwt.RegisteredClaims{
@@ -78,12 +104,12 @@ func (u *User) Token(duration time.Duration) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, u.claims)
-	return token.SignedString(jwtTestKey)
+	return token.SignedString(key)
 }
 
-func (u *User) Validate(token string) (bool, error) {
+func (u *User) Validate(token string, key []byte) (bool, error) {
 	tkn, err := jwt.ParseWithClaims(token, &u.claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtTestKey, nil
+		return key, nil
 	})
 
 	if err != nil {

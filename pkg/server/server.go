@@ -9,15 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Handler interface {
+	UsersInterface
+}
+
 type Server struct {
 	*gin.Engine
 	u *users.Users
+	h Handler
 }
 
-func New(u *users.Users) *Server {
+func New(h Handler) *Server {
 	s := &Server{
 		Engine: gin.Default(),
-		u:      u,
+		h:      h,
+		u:      users.New(h),
 	}
 
 	s.routes()

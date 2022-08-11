@@ -5,6 +5,17 @@
 package server
 
 func (s *Server) routes() {
-	s.POST("/api/user/add", s.addUser())
-	s.POST("/api/user/login", s.loginUser())
+	api := s.Group("/api")
+	{
+		user := api.Group("/user")
+		{
+			user.POST("/add", s.addUser())
+			user.POST("/login", s.loginUser())
+		}
+		translate := api.Group("/translate").Use(s.auth())
+		{
+			translate.GET("/ping", s.pong())
+		}
+	}
+
 }

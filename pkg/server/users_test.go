@@ -17,42 +17,60 @@ import (
 	"time"
 )
 
-type MemoryStoreError struct {
+type UsersInterfaceTest struct {
+	duration  time.Duration
+	key       []byte
 	store     *users.MemoryStore
 	returnErr bool
 }
 
-func (m *MemoryStoreError) Load(name string) (password string, err error) {
-	if m.returnErr {
+func (u *UsersInterfaceTest) TokenExpireTime() time.Duration {
+	return u.duration
+}
+func (u *UsersInterfaceTest) TokenKey() []byte {
+	return u.key
+}
+
+func (u *UsersInterfaceTest) Load(name string) (password string, err error) {
+	if u.returnErr {
 		return "", fmt.Errorf("internal error")
 	}
-	return m.store.Load(name)
+	return u.store.Load(name)
 }
 
-func (m *MemoryStoreError) Save(name, password string) error {
-	if m.returnErr {
+func (u *UsersInterfaceTest) Save(name, password string) error {
+	if u.returnErr {
 		return fmt.Errorf("internal error")
 	}
-	return m.store.Save(name, password)
+	return u.store.Save(name, password)
 }
 
-func (m *MemoryStoreError) NameExists(name string) (bool, error) {
-	if m.returnErr {
+func (u *UsersInterfaceTest) NameExists(name string) (bool, error) {
+	if u.returnErr {
 		return false, fmt.Errorf("internal error")
 	}
-	return m.store.NameExists(name)
+	return u.store.NameExists(name)
 }
 
-func (m *MemoryStoreError) Remove(name string) error {
-	if m.returnErr {
+func (u *UsersInterfaceTest) Remove(name string) error {
+	if u.returnErr {
 		return fmt.Errorf("internal error")
 	}
-	return m.store.Remove(name)
+	return u.store.Remove(name)
+}
+
+func NewUserInterfaceTest(duration time.Duration, key string, err bool) *UsersInterfaceTest {
+	return &UsersInterfaceTest{
+		duration:  duration,
+		key:       []byte(key),
+		store:     users.NewMemoryStore(),
+		returnErr: err,
+	}
 }
 
 func TestServer_addUser(t *testing.T) {
 	type fields struct {
-		u *users.Users
+		h server.Handler
 	}
 	type in struct {
 		url    string
@@ -75,7 +93,7 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "add user",
 			fields: fields{
-				u: users.New(users.NewMemoryStore()),
+				h: NewUserInterfaceTest(1*time.Minute, "key", false),
 			},
 			params: []params{
 				{
@@ -94,7 +112,7 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle errors",
 			fields: fields{
-				u: users.New(users.NewMemoryStore()),
+				h: NewUserInterfaceTest(1*time.Minute, "key", false),
 			},
 			params: []params{
 				{
@@ -124,10 +142,10 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle IO error",
 			fields: fields{
-				u: users.New(&MemoryStoreError{
+				h: &UsersInterfaceTest{
 					store:     users.NewMemoryStore(),
 					returnErr: true,
-				}),
+				},
 			},
 			params: []params{
 				{
@@ -147,7 +165,7 @@ func TestServer_addUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			s := server.New(tt.fields.u)
+			s := server.New(tt.fields.h)
 
 			for i, param := range tt.params {
 				reader := bytes.NewBuffer([]byte(param.in.body))
@@ -170,6 +188,7 @@ func TestUserToken_Validate(t *testing.T) {
 	type args struct {
 		u        server.User
 		duration time.Duration
+		key      []byte
 	}
 	type token struct {
 		err     bool
@@ -194,6 +213,7 @@ func TestUserToken_Validate(t *testing.T) {
 					Password: "",
 				},
 				duration: 3 * time.Second,
+				key:      []byte("key"),
 			},
 			token: token{
 				err: false,
@@ -211,6 +231,7 @@ func TestUserToken_Validate(t *testing.T) {
 					Password: "",
 				},
 				duration: 1 * time.Microsecond,
+				key:      []byte("key"),
 			},
 			token: token{
 				err: false,
@@ -225,7 +246,7 @@ func TestUserToken_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := tt.args.u.Token(tt.args.duration)
+			got, err := tt.args.u.Token(tt.args.duration, tt.args.key)
 
 			if tt.token.err {
 				require.NotNil(t, err, tt.name)
@@ -233,7 +254,7 @@ func TestUserToken_Validate(t *testing.T) {
 				require.Nil(t, err, tt.name)
 			}
 
-			validated, err := tt.args.u.Validate(got)
+			validated, err := tt.args.u.Validate(got, tt.args.key)
 
 			if tt.validate.err {
 				require.NotNil(t, err, tt.name)
@@ -243,6 +264,108 @@ func TestUserToken_Validate(t *testing.T) {
 			}
 
 			require.Equal(t, tt.validate.validated, validated)
+		})
+	}
+}
+
+func TestServer_loginUser(t *testing.T) {
+	type fields struct {
+		h server.Handler
+	}
+	type in struct {
+		url    string
+		method string
+		body   string
+	}
+	type out struct {
+		code int
+		body string
+	}
+	type params struct {
+		name string
+		in   in
+		out  out
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		params []params
+	}{
+		{
+			name: "add user, then login",
+			fields: fields{
+				h: NewUserInterfaceTest(1*time.Minute, "key", false),
+			},
+			params: []params{
+				{
+					name: "add user",
+					in: in{
+						url:    "/api/user/add",
+						method: http.MethodPost,
+						body:   `{"name": "adam", "password": "pwd"}`,
+					},
+					out: out{
+						code: http.StatusCreated,
+						body: `{"name":"adam"}`,
+					},
+				},
+				{
+					name: "login user - invalid credentials",
+					in: in{
+						url:    "/api/user/login",
+						method: http.MethodPost,
+						body:   `{"name": "adam", "password": "pwd1"}`,
+					},
+					out: out{
+						code: http.StatusUnauthorized,
+						body: "error",
+					},
+				},
+				{
+					name: "login user - invalid user",
+					in: in{
+						url:    "/api/user/login",
+						method: http.MethodPost,
+						body:   `{"name": "adam2", "password": "pwd"}`,
+					},
+					out: out{
+						code: http.StatusInternalServerError,
+						body: "error",
+					},
+				},
+				{
+					name: "login user - success",
+					in: in{
+						url:    "/api/user/login",
+						method: http.MethodPost,
+						body:   `{"name": "adam", "password": "pwd"}`,
+					},
+					out: out{
+						code: http.StatusOK,
+						body: "token",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			s := server.New(tt.fields.h)
+
+			for i, param := range tt.params {
+
+				reader := bytes.NewBuffer([]byte(param.in.body))
+				request, err := http.NewRequest(param.in.method, param.in.url, reader)
+
+				req.Nil(err, "unexpected err on %v", i)
+
+				response := httptest.NewRecorder()
+				s.ServeHTTP(response, request)
+
+				assert.Equal(t, param.out.code, response.Code)
+				assert.Contains(t, response.Body.String(), param.out.body)
+			}
 		})
 	}
 }

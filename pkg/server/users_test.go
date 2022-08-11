@@ -17,43 +17,37 @@ import (
 	"time"
 )
 
-type LoadSaverMock struct {
-	users     map[string]string
+type MemoryStoreError struct {
+	store     *users.MemoryStore
 	returnErr bool
 }
 
-func (l *LoadSaverMock) Load(name string) (password string, err error) {
-	if l.returnErr {
+func (m *MemoryStoreError) Load(name string) (password string, err error) {
+	if m.returnErr {
 		return "", fmt.Errorf("internal error")
 	}
-
-	password, _ = l.users[name]
-	return
+	return m.store.Load(name)
 }
 
-func (l *LoadSaverMock) Save(name, password string) error {
-	if l.returnErr {
+func (m *MemoryStoreError) Save(name, password string) error {
+	if m.returnErr {
 		return fmt.Errorf("internal error")
 	}
-
-	l.users[name] = password
-	return nil
+	return m.store.Save(name, password)
 }
 
-func (l *LoadSaverMock) NameExists(name string) (bool, error) {
-	if l.returnErr {
+func (m *MemoryStoreError) NameExists(name string) (bool, error) {
+	if m.returnErr {
 		return false, fmt.Errorf("internal error")
 	}
-	_, ok := l.users[name]
-	return ok, nil
+	return m.store.NameExists(name)
 }
 
-func (l *LoadSaverMock) Remove(name string) error {
-	if l.returnErr {
+func (m *MemoryStoreError) Remove(name string) error {
+	if m.returnErr {
 		return fmt.Errorf("internal error")
 	}
-	delete(l.users, name)
-	return nil
+	return m.store.Remove(name)
 }
 
 func TestServer_addUser(t *testing.T) {
@@ -81,10 +75,7 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "add user",
 			fields: fields{
-				u: users.New(&LoadSaverMock{
-					users:     map[string]string{},
-					returnErr: false,
-				}),
+				u: users.New(users.NewMemoryStore()),
 			},
 			params: []params{
 				{
@@ -103,10 +94,7 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle errors",
 			fields: fields{
-				u: users.New(&LoadSaverMock{
-					users:     map[string]string{},
-					returnErr: false,
-				}),
+				u: users.New(users.NewMemoryStore()),
 			},
 			params: []params{
 				{
@@ -136,8 +124,8 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle IO error",
 			fields: fields{
-				u: users.New(&LoadSaverMock{
-					users:     map[string]string{},
+				u: users.New(&MemoryStoreError{
+					store:     users.NewMemoryStore(),
 					returnErr: true,
 				}),
 			},

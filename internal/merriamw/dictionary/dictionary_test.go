@@ -118,12 +118,16 @@ func TestDictionary_Definition(t *testing.T) {
 				t.Fatalf("%s: Definition() suggestions = %#v, want %v", t.Name(), suggestions, tt.wantData.suggestions)
 			}
 
-			if !reflect.DeepEqual(gotData[0].Definition(), tt.wantData.definition) {
-				t.Fatalf("%s: Definition() gotData.Definition() = %#v, want %v", t.Name(), gotData[0].Definition(), tt.wantData.definition)
+			if tt.wantData.definition != nil {
+				if !reflect.DeepEqual(gotData[0].Definition(), tt.wantData.definition) {
+					t.Fatalf("%s: Definition() gotData.Definition() = %#v, want %v", t.Name(), gotData[0].Definition(), tt.wantData.definition)
+				}
 			}
 
-			if !reflect.DeepEqual(gotData[0].Text(), tt.wantData.text) {
-				t.Fatalf("%s: Definition() gotData.Translation() = %#v, want %v", t.Name(), gotData[0].Text(), tt.wantData.text)
+			if tt.wantData.text != "" {
+				if !reflect.DeepEqual(gotData[0].Text(), tt.wantData.text) {
+					t.Fatalf("%s: Definition() gotData.Translation() = %#v, want %v", t.Name(), gotData[0].Text(), tt.wantData.text)
+				}
 			}
 		})
 	}

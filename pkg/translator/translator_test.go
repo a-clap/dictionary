@@ -49,7 +49,7 @@ func TestTranslator_Get(t *testing.T) {
 		{
 			name: "TarPolish doesn't contain neither dictionary neither thesaurus",
 			fields: fields{
-				translate: translator.NewStandard(deeplKey, dictKey, thKey, logger.NewDevelopment()),
+				translate: translator.NewStandard(deeplKey, dictKey, thKey, logger.NewDummy()),
 			},
 			args: args{
 				text: "brain",
@@ -69,7 +69,7 @@ func TestTranslator_Get(t *testing.T) {
 		{
 			name: "dict json",
 			fields: fields{
-				translate: translator.NewStandard(deeplKey, dictKey, thKey, logger.NewDevelopment()),
+				translate: translator.NewStandard(deeplKey, dictKey, thKey, logger.NewDummy()),
 			},
 			args: args{
 				text: "mózg",

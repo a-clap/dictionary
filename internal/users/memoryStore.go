@@ -28,3 +28,7 @@ func (m *MemoryStore) Remove(name string) error {
 	delete(m.store, name)
 	return nil
 }
+
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{store: map[string]string{}}
+}

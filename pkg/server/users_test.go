@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 type LoadSaverMock struct {
@@ -173,6 +174,87 @@ func TestServer_addUser(t *testing.T) {
 				assert.Equal(t, param.out.code, response.Code)
 				assert.Contains(t, response.Body.String(), param.out.body)
 			}
+		})
+	}
+}
+
+func TestUserToken_Validate(t *testing.T) {
+	type args struct {
+		u        server.User
+		duration time.Duration
+	}
+	type token struct {
+		err     bool
+		errType error
+	}
+	type validate struct {
+		err       bool
+		errType   error
+		validated bool
+	}
+	tests := []struct {
+		name     string
+		args     args
+		token    token
+		validate validate
+	}{
+		{
+			name: "validation test",
+			args: args{
+				u: server.User{
+					Name:     "adam",
+					Password: "",
+				},
+				duration: 3 * time.Second,
+			},
+			token: token{
+				err: false,
+			},
+			validate: validate{
+				err:       false,
+				validated: true,
+			},
+		},
+		{
+			name: "should expire",
+			args: args{
+				u: server.User{
+					Name:     "adam",
+					Password: "",
+				},
+				duration: 1 * time.Microsecond,
+			},
+			token: token{
+				err: false,
+			},
+			validate: validate{
+				err:       true,
+				errType:   server.ErrExpired,
+				validated: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := tt.args.u.Token(tt.args.duration)
+
+			if tt.token.err {
+				require.NotNil(t, err, tt.name)
+			} else {
+				require.Nil(t, err, tt.name)
+			}
+
+			validated, err := tt.args.u.Validate(got)
+
+			if tt.validate.err {
+				require.NotNil(t, err, tt.name)
+				require.Equal(t, tt.validate.errType, err)
+			} else {
+				require.Nil(t, err, tt.name)
+			}
+
+			require.Equal(t, tt.validate.validated, validated)
 		})
 	}
 }

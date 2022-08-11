@@ -5,21 +5,27 @@
 package server
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"time"
 )
 
+var jwtTestKey []byte = []byte("test key")
+
 type User struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
+	claims   struct {
+		Name string `json:"name"`
+		jwt.RegisteredClaims
+	}
 }
 
-type Claims struct {
-	Name string `json:"name"`
-	jwt.RegisteredClaims
-}
+var (
+	ErrExpired = errors.New("token expired")
+)
 
 func (s *Server) addUser() gin.HandlerFunc {
 	return func(context *gin.Context) {
@@ -55,7 +61,7 @@ func (s *Server) loginUser() gin.HandlerFunc {
 		}
 
 		// All good, generate token
-		token, err := user.token()
+		token, err := user.Token(30 * time.Minute)
 		if err != nil {
 			context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -64,21 +70,30 @@ func (s *Server) loginUser() gin.HandlerFunc {
 	}
 }
 
-var jwtTestKey []byte = []byte("some key")
-
-func (u *User) token() (string, error) {
-	expires := time.Now().Add(30 * time.Minute)
-	claims := &Claims{
-		Name: u.Name,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: &jwt.NumericDate{Time: expires},
-		},
+func (u *User) Token(duration time.Duration) (string, error) {
+	expires := time.Now().Add(duration)
+	u.claims.Name = u.Name
+	u.claims.RegisteredClaims = jwt.RegisteredClaims{
+		ExpiresAt: &jwt.NumericDate{Time: expires},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SigningString()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, u.claims)
+	return token.SignedString(jwtTestKey)
 }
 
-func (u *User) validateToken(token string) (bool, error) {
-	return false, nil
+func (u *User) Validate(token string) (bool, error) {
+	tkn, err := jwt.ParseWithClaims(token, &u.claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtTestKey, nil
+	})
+
+	if err != nil {
+		if validationError, ok := err.(*jwt.ValidationError); ok {
+			if (validationError.Errors & jwt.ValidationErrorExpired) == jwt.ValidationErrorExpired {
+				return false, ErrExpired
+			}
+		}
+		return false, err
+	}
+
+	return tkn.Valid, nil
 }

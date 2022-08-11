@@ -11,21 +11,21 @@ import (
 )
 
 type Users struct {
-	i LoadSaver
+	i Store
 }
 
 var (
 	ErrExist    = errors.New("user already exists")
-	ErrNotExist = errors.New("user doesn't not exist")
+	ErrNotExist = errors.New("user doesn't exist")
 	ErrInvalid  = errors.New("invalid argument")
 	ErrIO       = errors.New("io error")
 	ErrHash     = errors.New("hash error") // tried to generate this error during tests, didn't happen
 )
 
 type (
-	// LoadSaver realizes access to some kind of user database (maybe even just map[string]string)
+	// Store realizes access to some kind of user database (maybe even just map[string]string)
 	// Errors returned by interface should be ONLY related to internal IO errors
-	LoadSaver interface {
+	Store interface {
 		// Load user password, if user doesn't exist, return ""
 		Load(name string) (password string, err error)
 		// Save new user with password, overwrites user password, if already exists
@@ -37,7 +37,7 @@ type (
 	}
 )
 
-func New(loadSaver LoadSaver) *Users {
+func New(loadSaver Store) *Users {
 	return &Users{i: loadSaver}
 }
 

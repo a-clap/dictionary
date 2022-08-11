@@ -2,58 +2,51 @@
 //  Use of this source code is governed by a MIT-style
 //  license that can be found in the LICENSE file.
 
-package users_test
+package users
 
 import (
 	"errors"
 	"fmt"
-	"github.com/a-clap/dictionary/internal/users"
 	"testing"
 )
 
-type LoadSaverMock struct {
-	users     map[string]string
+type MemoryStoreError struct {
+	store     MemoryStore
 	returnErr bool
 }
 
-func (l *LoadSaverMock) Load(name string) (password string, err error) {
-	if l.returnErr {
+func (m *MemoryStoreError) Load(name string) (password string, err error) {
+	if m.returnErr {
 		return "", fmt.Errorf("internal error")
 	}
-
-	password, _ = l.users[name]
-	return
+	return m.store.Load(name)
 }
 
-func (l *LoadSaverMock) Save(name, password string) error {
-	if l.returnErr {
+func (m *MemoryStoreError) Save(name, password string) error {
+	if m.returnErr {
 		return fmt.Errorf("internal error")
 	}
-
-	l.users[name] = password
-	return nil
+	return m.store.Save(name, password)
 }
 
-func (l *LoadSaverMock) NameExists(name string) (bool, error) {
-	if l.returnErr {
+func (m *MemoryStoreError) NameExists(name string) (bool, error) {
+	if m.returnErr {
 		return false, fmt.Errorf("internal error")
 	}
-	_, ok := l.users[name]
-	return ok, nil
+	return m.store.NameExists(name)
 }
 
-func (l *LoadSaverMock) Remove(name string) error {
-	if l.returnErr {
+func (m *MemoryStoreError) Remove(name string) error {
+	if m.returnErr {
 		return fmt.Errorf("internal error")
 	}
-	delete(l.users, name)
-	return nil
+	return m.store.Remove(name)
 }
 
 func TestUsers_Add(t *testing.T) {
 	// Table driven tests
 	type fields struct {
-		LoadSaver users.LoadSaver
+		Store Store
 	}
 	type argsErr struct {
 		name    string
@@ -68,7 +61,7 @@ func TestUsers_Add(t *testing.T) {
 	}{
 		{
 			name:   "add single user",
-			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
 			io: []argsErr{{
 				name:    "adam",
 				pass:    "password",
@@ -78,7 +71,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name: "add already existing user twice",
-			fields: fields{&LoadSaverMock{users: map[string]string{
+			fields: fields{Store: &MemoryStore{store: map[string]string{
 				"adam": "password",
 			}}},
 			io: []argsErr{
@@ -86,62 +79,62 @@ func TestUsers_Add(t *testing.T) {
 					name:    "adam",
 					pass:    "password",
 					err:     true,
-					errType: users.ErrExist,
+					errType: ErrExist,
 				},
 			},
 		},
 		{
 			name:   "invalid argument: password",
-			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
 			io: []argsErr{
 				{
 					name:    "adam",
 					pass:    "",
 					err:     true,
-					errType: users.ErrInvalid,
+					errType: ErrInvalid,
 				},
 			},
 		},
 		{
 			name:   "invalid argument: name",
-			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
 			io: []argsErr{
 				{
 					name:    "",
 					pass:    "1",
 					err:     true,
-					errType: users.ErrInvalid,
+					errType: ErrInvalid,
 				},
 			},
 		},
 		{
 			name:   "invalid argument: pass and name",
-			fields: fields{&LoadSaverMock{users: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
 			io: []argsErr{
 				{
 					name:    "",
 					pass:    "",
 					err:     true,
-					errType: users.ErrInvalid,
+					errType: ErrInvalid,
 				},
 			},
 		},
 		{
 			name:   "handle internal IO error",
-			fields: fields{&LoadSaverMock{users: map[string]string{}, returnErr: true}},
+			fields: fields{&MemoryStoreError{store: MemoryStore{}, returnErr: true}},
 			io: []argsErr{
 				{
 					name:    "adam",
 					pass:    "password",
 					err:     true,
-					errType: users.ErrIO,
+					errType: ErrIO,
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := users.New(tt.fields.LoadSaver)
+			u := New(tt.fields.Store)
 			for _, v := range tt.io {
 				err := u.Add(v.name, v.pass)
 				if (err != nil) != v.err {
@@ -153,18 +146,14 @@ func TestUsers_Add(t *testing.T) {
 						t.Errorf("%s: Add() error = %v, errType %v", tt.name, err, v.errType)
 					}
 				}
-
 			}
 		})
 	}
 
 	// Custom tests
 	t.Run("add doesn't store passwords directly", func(t *testing.T) {
-		mock := &LoadSaverMock{
-			users:     map[string]string{},
-			returnErr: false,
-		}
-		u := users.New(mock)
+		mock := &MemoryStore{store: map[string]string{}}
+		u := New(mock)
 
 		name := "adam"
 		password := "some crazy password"
@@ -174,16 +163,15 @@ func TestUsers_Add(t *testing.T) {
 			t.Errorf("%s: Add() error %v unexpected", t.Name(), err)
 		}
 		// Naive compare
-		if mock.users[name] == password {
+		if mock.store[name] == password {
 			t.Errorf("%s: Add() saves plain password", t.Name())
 		}
-
 	})
 }
 
 func TestUsers_Remove(t *testing.T) {
 	type fields struct {
-		LoadSaver users.LoadSaver
+		Store Store
 	}
 	type io struct {
 		name    string
@@ -197,46 +185,40 @@ func TestUsers_Remove(t *testing.T) {
 	}{
 		{
 			name: "handle io error",
-			fields: fields{&LoadSaverMock{
-				users:     make(map[string]string),
+			fields: fields{&MemoryStoreError{
+				store:     MemoryStore{map[string]string{}},
 				returnErr: true,
 			}},
 			args: []io{
 				{
 					name:    "adam",
 					err:     true,
-					errType: users.ErrIO,
+					errType: ErrIO,
 				},
 			},
 		},
 		{
-			name: "can't remove not existing user",
-			fields: fields{LoadSaver: &LoadSaverMock{
-				users:     make(map[string]string),
-				returnErr: false,
-			}},
+			name:   "can't remove not existing user",
+			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
 			args: []io{
 				{
 					name:    "not_exists",
 					err:     true,
-					errType: users.ErrNotExist,
+					errType: ErrNotExist,
 				},
 			},
 		},
 		{
 			name: "remove existing user",
-			fields: fields{LoadSaver: &LoadSaverMock{
-				users: map[string]string{
-					"adam": "pwd",
-				},
-				returnErr: false,
-			}},
+			fields: fields{Store: &MemoryStore{store: map[string]string{
+				"adam": "pwd",
+			}}},
 			args: []io{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := users.New(tt.fields.LoadSaver)
+			u := New(tt.fields.Store)
 			for _, v := range tt.args {
 				err := u.Remove(v.name)
 				if (err != nil) != v.err {
@@ -256,7 +238,7 @@ func TestUsers_Remove(t *testing.T) {
 
 func TestUsers_Auth(t *testing.T) {
 	type fields struct {
-		LoadSaver users.LoadSaver
+		LoadSaver Store
 	}
 	type io struct {
 		name     string
@@ -272,8 +254,7 @@ func TestUsers_Auth(t *testing.T) {
 	}{
 		{
 			name: "handle io error",
-			fields: fields{LoadSaver: &LoadSaverMock{
-				users:     map[string]string{},
+			fields: fields{LoadSaver: &MemoryStoreError{
 				returnErr: true,
 			}},
 			args: []io{
@@ -282,18 +263,17 @@ func TestUsers_Auth(t *testing.T) {
 					password: "also",
 					auth:     false,
 					err:      true,
-					errType:  users.ErrIO,
+					errType:  ErrIO,
 				},
 			},
 		},
 		{
 			name: "unauthorized access",
-			fields: fields{LoadSaver: &LoadSaverMock{
-				users: map[string]string{
+			fields: fields{LoadSaver: &MemoryStore{
+				store: map[string]string{
 					"adam": "correct_pwd_but_not_hashed",
 					"beta": "wrong_pwd",
 				},
-				returnErr: false,
 			}},
 			args: []io{
 				{
@@ -313,7 +293,7 @@ func TestUsers_Auth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := users.New(tt.fields.LoadSaver)
+			u := New(tt.fields.LoadSaver)
 
 			for _, args := range tt.args {
 				auth, err := u.Auth(args.name, args.password)
@@ -336,11 +316,10 @@ func TestUsers_Auth(t *testing.T) {
 
 	t.Run("authorized access", func(t *testing.T) {
 		//	Custom test - add user and then check authorized access
-		m := &LoadSaverMock{
-			users:     map[string]string{},
-			returnErr: false,
+		m := &MemoryStore{
+			store: map[string]string{},
 		}
-		u := users.New(m)
+		u := New(m)
 		name := "testing"
 		password := "awesome password"
 		if err := u.Add(name, password); err != nil {

@@ -47,7 +47,7 @@ func New(loadSaver Store) *Manager {
 }
 
 func (u *Manager) Add(user User) error {
-	if exists, err := u.Exists(user.Name); err != nil {
+	if exists, err := u.Exists(user); err != nil {
 		return err
 	} else if exists {
 		return fmt.Errorf("%s %w", user.Name, ErrExist)
@@ -69,31 +69,31 @@ func (u *Manager) Add(user User) error {
 	return nil
 }
 
-func (u *Manager) Remove(name string) error {
-	if exists, err := u.Exists(name); err != nil {
+func (u *Manager) Remove(user User) error {
+	if exists, err := u.Exists(user); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("%w %s", ErrNotExist, name)
+		return fmt.Errorf("%w %s", ErrNotExist, user.Name)
 	}
 
-	return u.Remove(name)
+	return u.i.Remove(user.Name)
 }
 
-func (u *Manager) Exists(name string) (bool, error) {
-	return u.nameExists(name)
+func (u *Manager) Exists(user User) (bool, error) {
+	return u.nameExists(user.Name)
 }
 
-func (u *Manager) Auth(name, password string) (bool, error) {
-	if exists, err := u.Exists(name); err != nil {
+func (u *Manager) Auth(user User) (bool, error) {
+	if exists, err := u.Exists(user); err != nil {
 		return false, err
 	} else if !exists {
-		return false, fmt.Errorf("%w %s", ErrNotExist, name)
+		return false, fmt.Errorf("%w %s", ErrNotExist, user.Name)
 	}
 
-	if hashPass, err := u.load(name); err != nil {
+	if hashPass, err := u.load(user.Name); err != nil {
 		return false, err
 	} else {
-		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(password)) == nil, nil
+		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(user.Password)) == nil, nil
 	}
 }
 

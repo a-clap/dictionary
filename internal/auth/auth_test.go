@@ -187,7 +187,7 @@ func TestUsers_Remove(t *testing.T) {
 		Store Store
 	}
 	type io struct {
-		name    string
+		user    User
 		err     bool
 		errType error
 	}
@@ -204,7 +204,9 @@ func TestUsers_Remove(t *testing.T) {
 			}},
 			args: []io{
 				{
-					name:    "adam",
+					user: User{
+						Name: "adam",
+					},
 					err:     true,
 					errType: ErrIO,
 				},
@@ -215,7 +217,9 @@ func TestUsers_Remove(t *testing.T) {
 			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
 			args: []io{
 				{
-					name:    "not_exists",
+					user: User{
+						Name: "not exists",
+					},
 					err:     true,
 					errType: ErrNotExist,
 				},
@@ -233,7 +237,7 @@ func TestUsers_Remove(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			u := New(tt.fields.Store)
 			for _, v := range tt.args {
-				err := u.Remove(v.name)
+				err := u.Remove(v.user)
 				if (err != nil) != v.err {
 					t.Fatalf("%s: Remove() error = %v, wantErr %v", tt.name, err, v.err)
 				}
@@ -254,11 +258,10 @@ func TestUsers_Auth(t *testing.T) {
 		LoadSaver Store
 	}
 	type io struct {
-		name     string
-		password string
-		auth     bool
-		err      bool
-		errType  error
+		user    User
+		auth    bool
+		err     bool
+		errType error
 	}
 	tests := []struct {
 		name   string
@@ -272,11 +275,13 @@ func TestUsers_Auth(t *testing.T) {
 			}},
 			args: []io{
 				{
-					name:     "dont matter",
-					password: "also",
-					auth:     false,
-					err:      true,
-					errType:  ErrIO,
+					user: User{
+						Name:     "dont matter",
+						Password: "also",
+					},
+					auth:    false,
+					err:     true,
+					errType: ErrIO,
 				},
 			},
 		},
@@ -290,16 +295,20 @@ func TestUsers_Auth(t *testing.T) {
 			}},
 			args: []io{
 				{
-					name:     "adam",
-					password: "correct_pwd_but_not_hashed",
-					auth:     false,
-					err:      false,
+					user: User{
+						Name:     "adam",
+						Password: "correct_pwd_but_not_hashed",
+					},
+					auth: false,
+					err:  false,
 				},
 				{
-					name:     "beta",
-					password: "other",
-					auth:     false,
-					err:      false,
+					user: User{
+						Name:     "beta",
+						Password: "other",
+					},
+					auth: false,
+					err:  false,
 				},
 			},
 		},
@@ -309,7 +318,7 @@ func TestUsers_Auth(t *testing.T) {
 			u := New(tt.fields.LoadSaver)
 
 			for _, args := range tt.args {
-				auth, err := u.Auth(args.name, args.password)
+				auth, err := u.Auth(args.user)
 				if (err != nil) != args.err {
 					t.Errorf("%s: Auth() error = %#v, wantErr %v", tt.name, err, args.err)
 				}
@@ -343,7 +352,7 @@ func TestUsers_Auth(t *testing.T) {
 			t.Errorf("%s: Add() unexpected error %#v", t.Name(), err)
 		}
 
-		if auth, err := u.Auth(user.Name, user.Password); err != nil {
+		if auth, err := u.Auth(user); err != nil {
 			t.Errorf("%s: Auth() unexpected error %#v", t.Name(), err)
 		} else if !auth {
 			t.Errorf("%s: Auth() expected to authorize user %v", t.Name(), user.Name)

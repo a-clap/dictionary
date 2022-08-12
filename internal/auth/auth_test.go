@@ -7,6 +7,8 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
@@ -370,5 +372,173 @@ func TestUsers_Auth(t *testing.T) {
 			t.Errorf("%s: Auth() expected to authorize user %v", t.Name(), user.Name)
 		}
 	})
+}
 
+func TestManager_TokenValidateToken(t *testing.T) {
+	type fields struct {
+		i StoreTokener
+	}
+	type args struct {
+		add           User
+		token         User
+		messWithToken bool
+		newToken      string
+	}
+	type wants struct {
+		addErr          bool
+		addErrType      error
+		tokenErr        bool
+		tokenErrType    error
+		validateErr     bool
+		validateErrType error
+		validate        User
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		wants  wants
+	}{
+		{
+			name: "the right path",
+			fields: fields{
+				i: NewMemoryStore([]byte("key"), time.Hour),
+			},
+			args: args{
+				add: User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+				token: User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+			},
+			wants: wants{
+				addErr:          false,
+				addErrType:      nil,
+				tokenErr:        false,
+				tokenErrType:    nil,
+				validateErr:     false,
+				validateErrType: nil,
+				validate: User{
+					Name: "adam",
+				},
+			},
+		},
+		{
+			name: "token expired",
+			fields: fields{
+				i: NewMemoryStore([]byte("key"), time.Microsecond),
+			},
+			args: args{
+				add: User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+				token: User{
+					Name: "adam",
+				},
+			},
+			wants: wants{
+				addErr:          false,
+				addErrType:      nil,
+				tokenErr:        false,
+				tokenErrType:    nil,
+				validateErr:     true,
+				validateErrType: ErrExpired,
+				validate:        User{},
+			},
+		},
+		{
+			name: "not existing user",
+			fields: fields{
+				i: NewMemoryStore([]byte("key"), time.Hour),
+			},
+			args: args{
+				add: User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+				token: User{
+					Name: "hehe",
+				},
+			},
+			wants: wants{
+				addErr:          false,
+				addErrType:      nil,
+				tokenErr:        true,
+				tokenErrType:    ErrNotExist,
+				validateErr:     false,
+				validateErrType: nil,
+				validate:        User{},
+			},
+		},
+		{
+			name: "mess with token",
+			fields: fields{
+				i: NewMemoryStore([]byte("key"), time.Hour),
+			},
+			args: args{
+				add: User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+				token: User{
+					Name: "adam",
+				},
+				messWithToken: true,
+				newToken:      "blabla",
+			},
+			wants: wants{
+				addErr:          false,
+				addErrType:      nil,
+				tokenErr:        false,
+				tokenErrType:    nil,
+				validateErr:     true,
+				validateErrType: jwt.NewValidationError("token contains an invalid number of segments", jwt.ValidationErrorMalformed),
+				validate:        User{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := New(tt.fields.i)
+
+			// First, need to add user
+			err := u.Add(tt.args.add)
+			if tt.wants.addErr {
+				require.NotNil(t, err)
+				require.Equal(t, err, tt.wants.addErrType)
+				return
+			}
+			require.Nil(t, err)
+
+			// Then generate token
+			got, err := u.Token(tt.args.token)
+			if tt.wants.tokenErr {
+				require.NotNil(t, err)
+				require.Equal(t, err, tt.wants.tokenErrType)
+				return
+			}
+			require.Nil(t, err)
+			require.NotEmpty(t, got)
+
+			if tt.args.messWithToken {
+				got = tt.args.newToken
+			}
+
+			// Try to validate token
+			user, err := u.ValidateToken(got)
+			if tt.wants.validateErr {
+				require.NotNil(t, err)
+				require.Equal(t, err, tt.wants.validateErrType)
+				return
+			}
+
+			require.Nil(t, err)
+			require.Equal(t, tt.wants.validate.Name, user.Name)
+
+		})
+	}
 }

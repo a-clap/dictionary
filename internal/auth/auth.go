@@ -119,6 +119,11 @@ func (u *Manager) Auth(user User) (bool, error) {
 }
 
 func (u *Manager) Token(user User) (string, error) {
+	if exists, err := u.Exists(user); err != nil {
+		return "", err
+	} else if !exists {
+		return "", ErrNotExist
+	}
 
 	expires := time.Now().Add(u.i.Duration())
 	user.claims.Name = user.Name
@@ -145,11 +150,12 @@ func (u *Manager) ValidateToken(token string) (User, error) {
 		return user, err
 	}
 
-	if tkn.Valid {
-		return user, nil
+	if !tkn.Valid {
+		return user, ErrInvalidToken
 	}
+	user.Name = user.claims.Name
 
-	return user, ErrInvalidToken
+	return user, nil
 }
 
 // load is wrapper for interface call Load, returns appropriate wrapped error

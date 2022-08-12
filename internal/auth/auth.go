@@ -26,13 +26,14 @@ type User struct {
 }
 
 var (
-	ErrExist        = errors.New("user already exists")
-	ErrNotExist     = errors.New("user doesn't exist")
-	ErrInvalid      = errors.New("invalid argument")
-	ErrIO           = errors.New("io error")
-	ErrHash         = errors.New("hash error") // tried to generate this error during tests, didn't happen
-	ErrExpired      = errors.New("token expired")
-	ErrInvalidToken = errors.New("invalid token")
+	ErrExist              = errors.New("user already exists")
+	ErrNotExist           = errors.New("user doesn't exist")
+	ErrInvalid            = errors.New("invalid argument")
+	ErrIO                 = errors.New("io error")
+	ErrHash               = errors.New("hash error") // tried to generate this error during tests, didn't happen
+	ErrExpired            = errors.New("token expired")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
 type (
@@ -71,7 +72,7 @@ func (u *Manager) Add(user User) error {
 	if exists, err := u.Exists(user); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("%s %w", user.Name, ErrExist)
+		return fmt.Errorf("%w %s", ErrExist, user.Name)
 	}
 
 	if len(user.Name) == 0 || len(user.Password) == 0 {
@@ -119,10 +120,10 @@ func (u *Manager) Auth(user User) (bool, error) {
 }
 
 func (u *Manager) Token(user User) (string, error) {
-	if exists, err := u.Exists(user); err != nil {
+	if auth, err := u.Auth(user); err != nil {
 		return "", err
-	} else if !exists {
-		return "", ErrNotExist
+	} else if !auth {
+		return "", ErrInvalidCredentials
 	}
 
 	expires := time.Now().Add(u.i.Duration())

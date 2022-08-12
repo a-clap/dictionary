@@ -437,7 +437,8 @@ func TestManager_TokenValidateToken(t *testing.T) {
 					Password: "pwd",
 				},
 				token: User{
-					Name: "adam",
+					Name:     "adam",
+					Password: "pwd",
 				},
 			},
 			wants: wants{
@@ -475,6 +476,31 @@ func TestManager_TokenValidateToken(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid credentials user",
+			fields: fields{
+				i: NewMemoryStore([]byte("key"), time.Hour),
+			},
+			args: args{
+				add: User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+				token: User{
+					Name:     "adam",
+					Password: "pwd2",
+				},
+			},
+			wants: wants{
+				addErr:          false,
+				addErrType:      nil,
+				tokenErr:        true,
+				tokenErrType:    ErrInvalidCredentials,
+				validateErr:     false,
+				validateErrType: nil,
+				validate:        User{},
+			},
+		},
+		{
 			name: "mess with token",
 			fields: fields{
 				i: NewMemoryStore([]byte("key"), time.Hour),
@@ -485,7 +511,8 @@ func TestManager_TokenValidateToken(t *testing.T) {
 					Password: "pwd",
 				},
 				token: User{
-					Name: "adam",
+					Name:     "adam",
+					Password: "pwd",
 				},
 				messWithToken: true,
 				newToken:      "blabla",
@@ -518,7 +545,7 @@ func TestManager_TokenValidateToken(t *testing.T) {
 			got, err := u.Token(tt.args.token)
 			if tt.wants.tokenErr {
 				require.NotNil(t, err)
-				require.Equal(t, err, tt.wants.tokenErrType)
+				require.True(t, errors.Is(err, tt.wants.tokenErrType))
 				return
 			}
 			require.Nil(t, err)

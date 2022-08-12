@@ -8,11 +8,23 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 )
 
+var _ Store = &MemoryStoreError{}
+var _ Tokener = &MemoryStoreError{}
+
 type MemoryStoreError struct {
-	store     MemoryStore
+	store     *MemoryStore
 	returnErr bool
+}
+
+func (m *MemoryStoreError) Key() []byte {
+	return []byte("super key")
+}
+
+func (m *MemoryStoreError) Duration() time.Duration {
+	return 1 * time.Minute
 }
 
 func (m *MemoryStoreError) Load(name string) (data []byte, err error) {
@@ -46,7 +58,7 @@ func (m *MemoryStoreError) Remove(name string) error {
 func TestUsers_Add(t *testing.T) {
 	// Table driven tests
 	type fields struct {
-		Store Store
+		storeTokener StoreTokener
 	}
 	type args struct {
 		user    User
@@ -60,7 +72,7 @@ func TestUsers_Add(t *testing.T) {
 	}{
 		{
 			name:   "add single user",
-			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
+			fields: fields{storeTokener: &MemoryStore{store: map[string][]byte{}}},
 			io: []args{{
 				user: User{
 					Name:     "adam",
@@ -72,7 +84,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name: "add already existing user twice",
-			fields: fields{Store: &MemoryStore{store: map[string][]byte{
+			fields: fields{storeTokener: &MemoryStore{store: map[string][]byte{
 				"adam": []byte("password"),
 			}}},
 			io: []args{
@@ -88,7 +100,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "invalid argument: password",
-			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
+			fields: fields{storeTokener: &MemoryStore{store: map[string][]byte{}}},
 			io: []args{
 				{
 					user: User{
@@ -102,7 +114,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "invalid argument: name",
-			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
+			fields: fields{storeTokener: &MemoryStore{store: map[string][]byte{}}},
 			io: []args{
 				{
 					user: User{
@@ -116,7 +128,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "invalid argument: pass and name",
-			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
+			fields: fields{storeTokener: &MemoryStore{store: map[string][]byte{}}},
 			io: []args{
 				{
 					user: User{
@@ -130,7 +142,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "handle internal IO error",
-			fields: fields{&MemoryStoreError{store: MemoryStore{}, returnErr: true}},
+			fields: fields{&MemoryStoreError{store: NewMemoryStore([]byte("key"), time.Hour), returnErr: true}},
 			io: []args{
 				{
 					user: User{
@@ -145,7 +157,7 @@ func TestUsers_Add(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := New(tt.fields.Store)
+			u := New(tt.fields.storeTokener)
 			for _, v := range tt.io {
 				err := u.Add(v.user)
 				if (err != nil) != v.err {
@@ -184,7 +196,7 @@ func TestUsers_Add(t *testing.T) {
 
 func TestUsers_Remove(t *testing.T) {
 	type fields struct {
-		Store Store
+		Store StoreTokener
 	}
 	type io struct {
 		user    User
@@ -199,7 +211,7 @@ func TestUsers_Remove(t *testing.T) {
 		{
 			name: "handle io error",
 			fields: fields{&MemoryStoreError{
-				store:     MemoryStore{map[string][]byte{}},
+				store:     NewMemoryStore([]byte("key"), time.Hour),
 				returnErr: true,
 			}},
 			args: []io{
@@ -255,7 +267,7 @@ func TestUsers_Remove(t *testing.T) {
 
 func TestUsers_Auth(t *testing.T) {
 	type fields struct {
-		LoadSaver Store
+		storeTokener StoreTokener
 	}
 	type io struct {
 		user    User
@@ -270,7 +282,7 @@ func TestUsers_Auth(t *testing.T) {
 	}{
 		{
 			name: "handle io error",
-			fields: fields{LoadSaver: &MemoryStoreError{
+			fields: fields{storeTokener: &MemoryStoreError{
 				returnErr: true,
 			}},
 			args: []io{
@@ -287,7 +299,7 @@ func TestUsers_Auth(t *testing.T) {
 		},
 		{
 			name: "unauthorized access",
-			fields: fields{LoadSaver: &MemoryStore{
+			fields: fields{storeTokener: &MemoryStore{
 				store: map[string][]byte{
 					"adam": []byte("correct_pwd_but_not_hashed"),
 					"beta": []byte("wrong_pwd"),
@@ -315,7 +327,7 @@ func TestUsers_Auth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := New(tt.fields.LoadSaver)
+			u := New(tt.fields.storeTokener)
 
 			for _, args := range tt.args {
 				auth, err := u.Auth(args.user)

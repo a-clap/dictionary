@@ -7,24 +7,32 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 type Manager struct {
-	i Store
+	i StoreTokener
 }
 
 type User struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
+	claims   struct {
+		Name string `json:"name"`
+		jwt.RegisteredClaims
+	}
 }
 
 var (
-	ErrExist    = errors.New("user already exists")
-	ErrNotExist = errors.New("user doesn't exist")
-	ErrInvalid  = errors.New("invalid argument")
-	ErrIO       = errors.New("io error")
-	ErrHash     = errors.New("hash error") // tried to generate this error during tests, didn't happen
+	ErrExist        = errors.New("user already exists")
+	ErrNotExist     = errors.New("user doesn't exist")
+	ErrInvalid      = errors.New("invalid argument")
+	ErrIO           = errors.New("io error")
+	ErrHash         = errors.New("hash error") // tried to generate this error during tests, didn't happen
+	ErrExpired      = errors.New("token expired")
+	ErrInvalidToken = errors.New("invalid token")
 )
 
 type (
@@ -40,10 +48,23 @@ type (
 		// Remove user with provided name, if user doesn't exist, don't do anything
 		Remove(name string) error
 	}
+
+	// Tokener realizes access to:
+	// key via Key() used to generate token
+	// duration via Duration() of generated key
+	Tokener interface {
+		Key() []byte
+		Duration() time.Duration
+	}
+
+	StoreTokener interface {
+		Store
+		Tokener
+	}
 )
 
-func New(loadSaver Store) *Manager {
-	return &Manager{i: loadSaver}
+func New(storeTokener StoreTokener) *Manager {
+	return &Manager{i: storeTokener}
 }
 
 func (u *Manager) Add(user User) error {
@@ -95,6 +116,40 @@ func (u *Manager) Auth(user User) (bool, error) {
 	} else {
 		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(user.Password)) == nil, nil
 	}
+}
+
+func (u *Manager) Token(user User) (string, error) {
+
+	expires := time.Now().Add(u.i.Duration())
+	user.claims.Name = user.Name
+	user.claims.RegisteredClaims = jwt.RegisteredClaims{
+		ExpiresAt: &jwt.NumericDate{Time: expires},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, user.claims)
+	return token.SignedString(u.i.Key())
+}
+
+func (u *Manager) ValidateToken(token string) (User, error) {
+	var user User
+	tkn, err := jwt.ParseWithClaims(token, &user.claims, func(token *jwt.Token) (interface{}, error) {
+		return u.i.Key(), nil
+	})
+
+	if err != nil {
+		if validationError, ok := err.(*jwt.ValidationError); ok {
+			if (validationError.Errors & jwt.ValidationErrorExpired) == jwt.ValidationErrorExpired {
+				return user, ErrExpired
+			}
+		}
+		return user, err
+	}
+
+	if tkn.Valid {
+		return user, nil
+	}
+
+	return user, ErrInvalidToken
 }
 
 // load is wrapper for interface call Load, returns appropriate wrapped error

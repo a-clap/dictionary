@@ -4,11 +4,25 @@
 
 package auth
 
-var _ Store = &MemoryStore{}
+import (
+	"time"
+)
+
+var _ StoreTokener = &MemoryStore{}
 
 // MemoryStore satisfies Store interface
 type MemoryStore struct {
-	store map[string][]byte
+	store    map[string][]byte
+	key      []byte
+	duration time.Duration
+}
+
+func (m *MemoryStore) Key() []byte {
+	return m.key
+}
+
+func (m *MemoryStore) Duration() time.Duration {
+	return m.duration
 }
 
 func (m *MemoryStore) Load(name string) ([]byte, error) {
@@ -31,6 +45,10 @@ func (m *MemoryStore) Remove(name string) error {
 	return nil
 }
 
-func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{store: map[string][]byte{}}
+func NewMemoryStore(key []byte, duration time.Duration) *MemoryStore {
+	return &MemoryStore{
+		store:    map[string][]byte{},
+		key:      key,
+		duration: duration,
+	}
 }

@@ -14,6 +14,11 @@ type Manager struct {
 	i Store
 }
 
+type User struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
 var (
 	ErrExist    = errors.New("user already exists")
 	ErrNotExist = errors.New("user doesn't exist")
@@ -41,23 +46,23 @@ func New(loadSaver Store) *Manager {
 	return &Manager{i: loadSaver}
 }
 
-func (u *Manager) Add(name, password string) error {
-	if exists, err := u.Exists(name); err != nil {
+func (u *Manager) Add(user User) error {
+	if exists, err := u.Exists(user.Name); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("%s %w", name, ErrExist)
+		return fmt.Errorf("%s %w", user.Name, ErrExist)
 	}
 
-	if len(name) == 0 || len(password) == 0 {
+	if len(user.Name) == 0 || len(user.Password) == 0 {
 		return fmt.Errorf("%w: name and password must be provided", ErrInvalid)
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("%w %v", ErrHash, err)
 	}
 
-	if err := u.save(name, hashedPassword); err != nil {
+	if err := u.save(user.Name, hashedPassword); err != nil {
 		return err
 	}
 

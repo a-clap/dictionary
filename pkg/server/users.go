@@ -6,7 +6,7 @@ package server
 
 import (
 	"errors"
-	"github.com/a-clap/dictionary/internal/users"
+	"github.com/a-clap/dictionary/internal/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
@@ -14,7 +14,7 @@ import (
 )
 
 type UsersInterface interface {
-	users.Store
+	auth.Store
 	TokenExpireTime() time.Duration
 	TokenKey() []byte
 }

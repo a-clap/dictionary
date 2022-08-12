@@ -7,7 +7,7 @@ package server_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/a-clap/dictionary/internal/users"
+	"github.com/a-clap/dictionary/internal/auth"
 	"github.com/a-clap/dictionary/pkg/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,7 @@ import (
 type UsersInterfaceTest struct {
 	duration  time.Duration
 	key       []byte
-	store     *users.MemoryStore
+	store     *auth.MemoryStore
 	returnErr bool
 }
 
@@ -63,7 +63,7 @@ func NewUserInterfaceTest(duration time.Duration, key string, err bool) *UsersIn
 	return &UsersInterfaceTest{
 		duration:  duration,
 		key:       []byte(key),
-		store:     users.NewMemoryStore(),
+		store:     auth.NewMemoryStore(),
 		returnErr: err,
 	}
 }
@@ -143,7 +143,7 @@ func TestServer_addUser(t *testing.T) {
 			name: "handle IO error",
 			fields: fields{
 				h: &UsersInterfaceTest{
-					store:     users.NewMemoryStore(),
+					store:     auth.NewMemoryStore(),
 					returnErr: true,
 				},
 			},

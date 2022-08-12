@@ -5,7 +5,7 @@
 package server
 
 import (
-	"github.com/a-clap/dictionary/internal/users"
+	"github.com/a-clap/dictionary/internal/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +15,7 @@ type Handler interface {
 
 type Server struct {
 	*gin.Engine
-	u *users.Users
+	u *auth.Users
 	h Handler
 }
 
@@ -23,7 +23,7 @@ func New(h Handler) *Server {
 	s := &Server{
 		Engine: gin.Default(),
 		h:      h,
-		u:      users.New(h),
+		u:      auth.New(h),
 	}
 
 	s.routes()

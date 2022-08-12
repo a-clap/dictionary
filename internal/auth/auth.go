@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Users struct {
+type Manager struct {
 	i Store
 }
 
@@ -23,13 +23,13 @@ var (
 )
 
 type (
-	// Store realizes access to some kind of user database (maybe even just map[string]string)
+	// Store realizes access to some kind of user database (maybe even just map[string][]data)
 	// Errors returned by interface should be ONLY related to internal IO errors
 	Store interface {
-		// Load user password, if user doesn't exist, return ""
-		Load(name string) (password string, err error)
-		// Save new user with password, overwrites user password, if already exists
-		Save(name, password string) error
+		// Load user data, if user doesn't exist, return ""
+		Load(name string) (data []byte, err error)
+		// Save new user with custom data. Overwrites, if already exists
+		Save(name string, data []byte) error
 		// NameExists allows to check whether user with name already exists
 		NameExists(name string) (bool, error)
 		// Remove user with provided name, if user doesn't exist, don't do anything
@@ -37,11 +37,11 @@ type (
 	}
 )
 
-func New(loadSaver Store) *Users {
-	return &Users{i: loadSaver}
+func New(loadSaver Store) *Manager {
+	return &Manager{i: loadSaver}
 }
 
-func (u *Users) Add(name, password string) error {
+func (u *Manager) Add(name, password string) error {
 	if exists, err := u.Exists(name); err != nil {
 		return err
 	} else if exists {
@@ -57,14 +57,14 @@ func (u *Users) Add(name, password string) error {
 		return fmt.Errorf("%w %v", ErrHash, err)
 	}
 
-	if err := u.save(name, string(hashedPassword)); err != nil {
+	if err := u.save(name, hashedPassword); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (u *Users) Remove(name string) error {
+func (u *Manager) Remove(name string) error {
 	if exists, err := u.Exists(name); err != nil {
 		return err
 	} else if !exists {
@@ -74,11 +74,11 @@ func (u *Users) Remove(name string) error {
 	return u.Remove(name)
 }
 
-func (u *Users) Exists(name string) (bool, error) {
+func (u *Manager) Exists(name string) (bool, error) {
 	return u.nameExists(name)
 }
 
-func (u *Users) Auth(name, password string) (bool, error) {
+func (u *Manager) Auth(name, password string) (bool, error) {
 	if exists, err := u.Exists(name); err != nil {
 		return false, err
 	} else if !exists {
@@ -93,24 +93,24 @@ func (u *Users) Auth(name, password string) (bool, error) {
 }
 
 // load is wrapper for interface call Load, returns appropriate wrapped error
-func (u *Users) load(name string) (password string, err error) {
-	password, err = u.i.Load(name)
+func (u *Manager) load(name string) (data []byte, err error) {
+	data, err = u.i.Load(name)
 	if err != nil {
-		return "", fmt.Errorf("%w: Load: name %s, error: %v", ErrIO, name, err)
+		return nil, fmt.Errorf("%w: Load: name %s, error: %v", ErrIO, name, err)
 	}
-	return password, err
+	return data, err
 }
 
 // save is wrapper for interface call Save, returns appropriate wrapped error
-func (u *Users) save(name, password string) error {
-	if err := u.i.Save(name, password); err != nil {
+func (u *Manager) save(name string, data []byte) error {
+	if err := u.i.Save(name, data); err != nil {
 		return fmt.Errorf("%w: Save: name %s, error: %v", ErrIO, name, err)
 	}
 	return nil
 }
 
 // nameExists is wrapper for interface call NameExists, returns appropriate wrapped error
-func (u *Users) nameExists(name string) (bool, error) {
+func (u *Manager) nameExists(name string) (bool, error) {
 	exist, err := u.i.NameExists(name)
 	if err != nil {
 		return false, fmt.Errorf("%w: NameExists: %s, error: %v", ErrIO, name, err)
@@ -119,7 +119,7 @@ func (u *Users) nameExists(name string) (bool, error) {
 }
 
 // remove is wrapper for interface call Remove, returns appropriate wrapped error
-func (u *Users) remove(name string) error {
+func (u *Manager) remove(name string) error {
 	err := u.i.Remove(name)
 	if err != nil {
 		return fmt.Errorf("%w: Remove: %s, error: %v", ErrIO, name, err)

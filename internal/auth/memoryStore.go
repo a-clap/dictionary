@@ -4,18 +4,20 @@
 
 package auth
 
+var _ Store = &MemoryStore{}
+
 // MemoryStore satisfies Store interface
 type MemoryStore struct {
-	store map[string]string
+	store map[string][]byte
 }
 
-func (m *MemoryStore) Load(name string) (string, error) {
-	password, _ := m.store[name]
-	return password, nil
+func (m *MemoryStore) Load(name string) ([]byte, error) {
+	data, _ := m.store[name]
+	return data, nil
 }
 
-func (m *MemoryStore) Save(name, password string) error {
-	m.store[name] = password
+func (m *MemoryStore) Save(name string, data []byte) error {
+	m.store[name] = data
 	return nil
 }
 
@@ -30,5 +32,5 @@ func (m *MemoryStore) Remove(name string) error {
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{store: map[string]string{}}
+	return &MemoryStore{store: map[string][]byte{}}
 }

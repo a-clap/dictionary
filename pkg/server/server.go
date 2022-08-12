@@ -15,7 +15,7 @@ type Handler interface {
 
 type Server struct {
 	*gin.Engine
-	u *auth.Users
+	u *auth.Manager
 	h Handler
 }
 

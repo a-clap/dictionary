@@ -15,18 +15,18 @@ type MemoryStoreError struct {
 	returnErr bool
 }
 
-func (m *MemoryStoreError) Load(name string) (password string, err error) {
+func (m *MemoryStoreError) Load(name string) (data []byte, err error) {
 	if m.returnErr {
-		return "", fmt.Errorf("internal error")
+		return nil, fmt.Errorf("internal error")
 	}
 	return m.store.Load(name)
 }
 
-func (m *MemoryStoreError) Save(name, password string) error {
+func (m *MemoryStoreError) Save(name string, data []byte) error {
 	if m.returnErr {
 		return fmt.Errorf("internal error")
 	}
-	return m.store.Save(name, password)
+	return m.store.Save(name, data)
 }
 
 func (m *MemoryStoreError) NameExists(name string) (bool, error) {
@@ -61,7 +61,7 @@ func TestUsers_Add(t *testing.T) {
 	}{
 		{
 			name:   "add single user",
-			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
 			io: []argsErr{{
 				name:    "adam",
 				pass:    "password",
@@ -71,8 +71,8 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name: "add already existing user twice",
-			fields: fields{Store: &MemoryStore{store: map[string]string{
-				"adam": "password",
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{
+				"adam": []byte("password"),
 			}}},
 			io: []argsErr{
 				{
@@ -85,7 +85,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "invalid argument: password",
-			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
 			io: []argsErr{
 				{
 					name:    "adam",
@@ -97,7 +97,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "invalid argument: name",
-			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
 			io: []argsErr{
 				{
 					name:    "",
@@ -109,7 +109,7 @@ func TestUsers_Add(t *testing.T) {
 		},
 		{
 			name:   "invalid argument: pass and name",
-			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
 			io: []argsErr{
 				{
 					name:    "",
@@ -152,7 +152,7 @@ func TestUsers_Add(t *testing.T) {
 
 	// Custom tests
 	t.Run("add doesn't store passwords directly", func(t *testing.T) {
-		mock := &MemoryStore{store: map[string]string{}}
+		mock := &MemoryStore{store: map[string][]byte{}}
 		u := New(mock)
 
 		name := "adam"
@@ -163,7 +163,7 @@ func TestUsers_Add(t *testing.T) {
 			t.Errorf("%s: Add() error %v unexpected", t.Name(), err)
 		}
 		// Naive compare
-		if mock.store[name] == password {
+		if string(mock.store[name]) == password {
 			t.Errorf("%s: Add() saves plain password", t.Name())
 		}
 	})
@@ -186,7 +186,7 @@ func TestUsers_Remove(t *testing.T) {
 		{
 			name: "handle io error",
 			fields: fields{&MemoryStoreError{
-				store:     MemoryStore{map[string]string{}},
+				store:     MemoryStore{map[string][]byte{}},
 				returnErr: true,
 			}},
 			args: []io{
@@ -199,7 +199,7 @@ func TestUsers_Remove(t *testing.T) {
 		},
 		{
 			name:   "can't remove not existing user",
-			fields: fields{Store: &MemoryStore{store: map[string]string{}}},
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{}}},
 			args: []io{
 				{
 					name:    "not_exists",
@@ -210,8 +210,8 @@ func TestUsers_Remove(t *testing.T) {
 		},
 		{
 			name: "remove existing user",
-			fields: fields{Store: &MemoryStore{store: map[string]string{
-				"adam": "pwd",
+			fields: fields{Store: &MemoryStore{store: map[string][]byte{
+				"adam": []byte("pwd"),
 			}}},
 			args: []io{},
 		},
@@ -270,9 +270,9 @@ func TestUsers_Auth(t *testing.T) {
 		{
 			name: "unauthorized access",
 			fields: fields{LoadSaver: &MemoryStore{
-				store: map[string]string{
-					"adam": "correct_pwd_but_not_hashed",
-					"beta": "wrong_pwd",
+				store: map[string][]byte{
+					"adam": []byte("correct_pwd_but_not_hashed"),
+					"beta": []byte("wrong_pwd"),
 				},
 			}},
 			args: []io{
@@ -317,7 +317,7 @@ func TestUsers_Auth(t *testing.T) {
 	t.Run("authorized access", func(t *testing.T) {
 		//	Custom test - add user and then check authorized access
 		m := &MemoryStore{
-			store: map[string]string{},
+			store: map[string][]byte{},
 		}
 		u := New(m)
 		name := "testing"

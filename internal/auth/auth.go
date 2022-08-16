@@ -64,10 +64,12 @@ type (
 	}
 )
 
+// New is default constructor for Manager
 func New(storeTokener StoreTokener) *Manager {
 	return &Manager{i: storeTokener}
 }
 
+// Add adds user to base
 func (u *Manager) Add(user User) error {
 	if exists, err := u.Exists(user); err != nil {
 		return err
@@ -91,6 +93,7 @@ func (u *Manager) Add(user User) error {
 	return nil
 }
 
+// Remove user from Manager
 func (u *Manager) Remove(user User) error {
 	if exists, err := u.Exists(user); err != nil {
 		return err
@@ -101,10 +104,12 @@ func (u *Manager) Remove(user User) error {
 	return u.i.Remove(user.Name)
 }
 
+// Exists checks, whether particular user exists
 func (u *Manager) Exists(user User) (bool, error) {
 	return u.nameExists(user.Name)
 }
 
+// Auth serves as user authentication (login)
 func (u *Manager) Auth(user User) (bool, error) {
 	if exists, err := u.Exists(user); err != nil {
 		return false, err
@@ -119,6 +124,7 @@ func (u *Manager) Auth(user User) (bool, error) {
 	}
 }
 
+// Token returns jwtToken, if user provides correct credentials
 func (u *Manager) Token(user User) (string, error) {
 	if auth, err := u.Auth(user); err != nil {
 		return "", err
@@ -136,6 +142,7 @@ func (u *Manager) Token(user User) (string, error) {
 	return token.SignedString(u.i.Key())
 }
 
+// ValidateToken returns associated User to token, error on invalid token
 func (u *Manager) ValidateToken(token string) (User, error) {
 	var user User
 	tkn, err := jwt.ParseWithClaims(token, &user.claims, func(token *jwt.Token) (interface{}, error) {

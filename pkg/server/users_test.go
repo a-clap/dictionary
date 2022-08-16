@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/a-clap/dictionary/internal/auth"
+	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/pkg/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,60 +18,55 @@ import (
 	"time"
 )
 
-type UsersInterfaceTest struct {
-	duration  time.Duration
-	key       []byte
-	store     *auth.MemoryStore
-	returnErr bool
+type memoryStoreError struct {
+	store *auth.MemoryStore
+	err   bool
 }
 
-func (u *UsersInterfaceTest) TokenExpireTime() time.Duration {
-	return u.duration
-}
-func (u *UsersInterfaceTest) TokenKey() []byte {
-	return u.key
+func (m *memoryStoreError) Key() []byte {
+	return m.store.Key()
 }
 
-func (u *UsersInterfaceTest) Load(name string) (password string, err error) {
-	if u.returnErr {
-		return "", fmt.Errorf("internal error")
+func (m *memoryStoreError) Duration() time.Duration {
+	return m.store.Duration()
+}
+
+// Load loads user data from store
+func (m *memoryStoreError) Load(name string) ([]byte, error) {
+	if m.err {
+		return nil, fmt.Errorf("io error")
 	}
-	return u.store.Load(name)
+	return m.store.Load(name)
 }
 
-func (u *UsersInterfaceTest) Save(name, password string) error {
-	if u.returnErr {
-		return fmt.Errorf("internal error")
+// Save users data into store
+func (m *memoryStoreError) Save(name string, data []byte) error {
+	if m.err {
+		return fmt.Errorf("io error")
 	}
-	return u.store.Save(name, password)
+	return m.store.Save(name, data)
 }
 
-func (u *UsersInterfaceTest) NameExists(name string) (bool, error) {
-	if u.returnErr {
-		return false, fmt.Errorf("internal error")
+// NameExists returns true, whether user with provided name exists
+func (m *memoryStoreError) NameExists(name string) (bool, error) {
+	if m.err {
+		return false, fmt.Errorf("io error")
 	}
-	return u.store.NameExists(name)
+	return m.store.NameExists(name)
 }
 
-func (u *UsersInterfaceTest) Remove(name string) error {
-	if u.returnErr {
-		return fmt.Errorf("internal error")
+// Remove user from store
+func (m *memoryStoreError) Remove(name string) error {
+	if m.err {
+		return fmt.Errorf("io error")
 	}
-	return u.store.Remove(name)
-}
-
-func NewUserInterfaceTest(duration time.Duration, key string, err bool) *UsersInterfaceTest {
-	return &UsersInterfaceTest{
-		duration:  duration,
-		key:       []byte(key),
-		store:     auth.NewMemoryStore(),
-		returnErr: err,
-	}
+	return m.store.Remove(name)
 }
 
 func TestServer_addUser(t *testing.T) {
 	type fields struct {
-		h server.Handler
+		h      server.Handler
+		logger logger.Logger
 	}
 	type in struct {
 		url    string
@@ -93,7 +89,8 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "add user",
 			fields: fields{
-				h: NewUserInterfaceTest(1*time.Minute, "key", false),
+				h:      auth.NewMemoryStore([]byte("extra private key"), 1*time.Minute),
+				logger: logger.NewDummy(),
 			},
 			params: []params{
 				{
@@ -112,7 +109,8 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle errors",
 			fields: fields{
-				h: NewUserInterfaceTest(1*time.Minute, "key", false),
+				h:      auth.NewMemoryStore([]byte("extra private key"), 1*time.Minute),
+				logger: logger.NewDevelopment(),
 			},
 			params: []params{
 				{
@@ -142,9 +140,9 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle IO error",
 			fields: fields{
-				h: &UsersInterfaceTest{
-					store:     auth.NewMemoryStore(),
-					returnErr: true,
+				h: &memoryStoreError{
+					store: auth.NewMemoryStore([]byte("key"), 1*time.Hour),
+					err:   true,
 				},
 			},
 			params: []params{
@@ -165,7 +163,7 @@ func TestServer_addUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			s := server.New(tt.fields.h)
+			s := server.New(tt.fields.h, tt.fields.logger)
 
 			for i, param := range tt.params {
 				reader := bytes.NewBuffer([]byte(param.in.body))
@@ -184,93 +182,10 @@ func TestServer_addUser(t *testing.T) {
 	}
 }
 
-func TestUserToken_Validate(t *testing.T) {
-	type args struct {
-		u        server.User
-		duration time.Duration
-		key      []byte
-	}
-	type token struct {
-		err     bool
-		errType error
-	}
-	type validate struct {
-		err       bool
-		errType   error
-		validated bool
-	}
-	tests := []struct {
-		name     string
-		args     args
-		token    token
-		validate validate
-	}{
-		{
-			name: "validation test",
-			args: args{
-				u: server.User{
-					Name:     "adam",
-					Password: "",
-				},
-				duration: 3 * time.Second,
-				key:      []byte("key"),
-			},
-			token: token{
-				err: false,
-			},
-			validate: validate{
-				err:       false,
-				validated: true,
-			},
-		},
-		{
-			name: "should expire",
-			args: args{
-				u: server.User{
-					Name:     "adam",
-					Password: "",
-				},
-				duration: 1 * time.Microsecond,
-				key:      []byte("key"),
-			},
-			token: token{
-				err: false,
-			},
-			validate: validate{
-				err:       true,
-				errType:   server.ErrExpired,
-				validated: false,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			got, err := tt.args.u.Token(tt.args.duration, tt.args.key)
-
-			if tt.token.err {
-				require.NotNil(t, err, tt.name)
-			} else {
-				require.Nil(t, err, tt.name)
-			}
-
-			validated, err := tt.args.u.Validate(got, tt.args.key)
-
-			if tt.validate.err {
-				require.NotNil(t, err, tt.name)
-				require.Equal(t, tt.validate.errType, err)
-			} else {
-				require.Nil(t, err, tt.name)
-			}
-
-			require.Equal(t, tt.validate.validated, validated)
-		})
-	}
-}
-
 func TestServer_loginUser(t *testing.T) {
 	type fields struct {
-		h server.Handler
+		h      server.Handler
+		logger logger.Logger
 	}
 	type in struct {
 		url    string
@@ -294,7 +209,8 @@ func TestServer_loginUser(t *testing.T) {
 		{
 			name: "add user, then login",
 			fields: fields{
-				h: NewUserInterfaceTest(1*time.Minute, "key", false),
+				h:      auth.NewMemoryStore([]byte("key"), 1*time.Minute),
+				logger: logger.NewDummy(),
 			},
 			params: []params{
 				{
@@ -351,7 +267,7 @@ func TestServer_loginUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			s := server.New(tt.fields.h)
+			s := server.New(tt.fields.h, tt.fields.logger)
 
 			for i, param := range tt.params {
 

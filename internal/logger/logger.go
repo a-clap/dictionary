@@ -11,6 +11,9 @@ import (
 
 type Level int64
 
+var _ Logger = &Dummy{}
+var _ Logger = &Development{}
+
 // Level defines current logging level
 const (
 	Info Level = iota

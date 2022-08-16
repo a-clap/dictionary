@@ -6,24 +6,25 @@ package server
 
 import (
 	"github.com/a-clap/dictionary/internal/auth"
+	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/gin-gonic/gin"
 )
 
 type Handler interface {
-	UsersInterface
+	auth.StoreTokener
 }
 
 type Server struct {
 	*gin.Engine
-	u *auth.Manager
-	h Handler
+	manager *auth.Manager
+	logger  logger.Logger
 }
 
-func New(h Handler) *Server {
+func New(h Handler, logger logger.Logger) *Server {
 	s := &Server{
-		Engine: gin.Default(),
-		h:      h,
-		u:      auth.New(h),
+		Engine:  gin.Default(),
+		manager: auth.New(h),
+		logger:  logger,
 	}
 
 	s.routes()

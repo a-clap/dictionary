@@ -13,12 +13,32 @@ import (
 	"time"
 )
 
-var _ Store = &MemoryStoreError{}
-var _ Tokener = &MemoryStoreError{}
+var _ StoreTokener = &MemoryStoreError{}
 
 type MemoryStoreError struct {
 	store     *MemoryStore
 	returnErr bool
+}
+
+func (m *MemoryStoreError) AddToken(token string) error {
+	if m.returnErr {
+		return fmt.Errorf("io err")
+	}
+	return m.store.AddToken(token)
+}
+
+func (m *MemoryStoreError) TokenExists(token string) (bool, error) {
+	if m.returnErr {
+		return false, fmt.Errorf("io err")
+	}
+	return m.store.TokenExists(token)
+}
+
+func (m *MemoryStoreError) RemoveToken(token string) error {
+	if m.returnErr {
+		return fmt.Errorf("io err")
+	}
+	return m.store.RemoveToken(token)
 }
 
 func (m *MemoryStoreError) Key() []byte {
@@ -568,4 +588,151 @@ func TestManager_TokenValidateToken(t *testing.T) {
 
 		})
 	}
+}
+
+func TestManager_Logout(t *testing.T) {
+	type fields struct {
+		i StoreTokener
+	}
+	type args struct {
+		loginUser *User
+		token     string
+	}
+	type wants struct {
+		logout  User
+		err     bool
+		errType error
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		wants  wants
+	}{
+		{
+			name: "the right path",
+			fields: fields{
+				i: NewMemoryStore([]byte("super secret key"), time.Hour),
+			},
+			args: args{
+				loginUser: &User{
+					Name:     "adam",
+					Password: "pwd",
+				},
+				token: "",
+			},
+			wants: wants{
+				logout: User{
+					Name:     "adam",
+					Password: "",
+				},
+				err:     false,
+				errType: nil,
+			},
+		},
+		{
+			name: "wrong token",
+			fields: fields{
+				i: NewMemoryStore([]byte("super secret key"), time.Hour),
+			},
+			args: args{
+				loginUser: nil,
+				token:     "",
+			},
+			wants: wants{
+				logout:  User{},
+				err:     true,
+				errType: jwt.NewValidationError("token contains an invalid number of segments", jwt.ValidationErrorMalformed),
+			},
+		},
+		{
+			name: "wrong token #2",
+			fields: fields{
+				i: NewMemoryStore([]byte("super secret key"), time.Hour),
+			},
+			args: args{
+				loginUser: nil,
+				token:     "123asfasb543rqsa",
+			},
+			wants: wants{
+				logout:  User{},
+				err:     true,
+				errType: jwt.NewValidationError("token contains an invalid number of segments", jwt.ValidationErrorMalformed),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(tt.fields.i)
+
+			if tt.args.loginUser != nil {
+				if err := m.Add(*tt.args.loginUser); err != nil {
+					t.Fatalf("%s: err not expected %#v", t.Name(), err)
+				}
+				auth, err := m.Auth(*tt.args.loginUser)
+				if err != nil {
+					t.Fatalf("%s: err not expected %#v", t.Name(), err)
+				}
+				if !auth {
+					t.Fatalf("%s: auth expected %#v", t.Name(), auth)
+				}
+
+				tt.args.token, err = m.Token(*tt.args.loginUser)
+				if err != nil {
+					t.Fatalf("%s: err not expected %#v", t.Name(), err)
+				}
+			}
+
+			got, err := m.Logout(tt.args.token)
+			if (err != nil) != tt.wants.err {
+				t.Errorf("%s: Logout() error = %#v, tt.wants.err %#v", t.Name(), err, tt.wants.err)
+				return
+			}
+
+			if tt.wants.err {
+				require.Equal(t, tt.wants.errType, err)
+				return
+			}
+
+			require.NotNil(t, got)
+			require.Equal(t, tt.wants.logout.Name, got.Name)
+			require.Empty(t, tt.wants.logout.Password)
+		})
+	}
+}
+
+func TestManager_LoginLogout(t *testing.T) {
+	t.Run("logout twice", func(t *testing.T) {
+		m := New(NewMemoryStore([]byte("key"), time.Hour))
+
+		addUser := User{
+			Name:     "adam",
+			Password: "pwd",
+		}
+
+		// First, need to add user
+		require.Nil(t, m.Add(addUser))
+
+		// Get token for user
+		token, err := m.Token(addUser)
+		require.Nil(t, err)
+		require.NotEmpty(t, token)
+
+		// Check whether token is right
+		validateToken, err := m.ValidateToken(token)
+		require.Nil(t, err)
+		require.Equal(t, validateToken.Name, addUser.Name)
+
+		// Logout user
+		logout, err := m.Logout(token)
+		require.Nil(t, err)
+		require.Equal(t, logout.Name, addUser.Name)
+
+		// Logout for second time
+		logout, err = m.Logout(token)
+		require.NotNil(t, err)
+		require.Nil(t, logout)
+
+	})
+
 }

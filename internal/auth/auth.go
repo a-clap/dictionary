@@ -34,6 +34,7 @@ var (
 	ErrExpired            = errors.New("token expired")
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrBlacklisted        = errors.New("user blacklisted - logged out")
 )
 
 type (
@@ -48,11 +49,17 @@ type (
 		NameExists(name string) (bool, error)
 		// Remove user with provided name, if user doesn't exist, don't do anything
 		Remove(name string) error
+		// AddToken adds token to token blacklists
+		AddToken(token string) error
+		// TokenExists checks whether token exists in blacklist
+		TokenExists(token string) (bool, error)
+		// RemoveToken removes token from blacklist
+		RemoveToken(token string) error
 	}
 
 	// Tokener realizes access to:
 	// key via Key() used to generate token
-	// duration via Duration() of generated key
+	// duration via Duration() for generated jwt token
 	Tokener interface {
 		Key() []byte
 		Duration() time.Duration
@@ -70,8 +77,8 @@ func New(storeTokener StoreTokener) *Manager {
 }
 
 // Add adds user to base
-func (u *Manager) Add(user User) error {
-	if exists, err := u.Exists(user); err != nil {
+func (m *Manager) Add(user User) error {
+	if exists, err := m.Exists(user); err != nil {
 		return err
 	} else if exists {
 		return fmt.Errorf("%w %s", ErrExist, user.Name)
@@ -86,7 +93,7 @@ func (u *Manager) Add(user User) error {
 		return fmt.Errorf("%w %v", ErrHash, err)
 	}
 
-	if err := u.save(user.Name, hashedPassword); err != nil {
+	if err := m.save(user.Name, hashedPassword); err != nil {
 		return err
 	}
 
@@ -94,81 +101,102 @@ func (u *Manager) Add(user User) error {
 }
 
 // Remove user from Manager
-func (u *Manager) Remove(user User) error {
-	if exists, err := u.Exists(user); err != nil {
+func (m *Manager) Remove(user User) error {
+	if exists, err := m.Exists(user); err != nil {
 		return err
 	} else if !exists {
 		return fmt.Errorf("%w %s", ErrNotExist, user.Name)
 	}
 
-	return u.i.Remove(user.Name)
+	return m.i.Remove(user.Name)
 }
 
 // Exists checks, whether particular user exists
-func (u *Manager) Exists(user User) (bool, error) {
-	return u.nameExists(user.Name)
+func (m *Manager) Exists(user User) (bool, error) {
+	return m.nameExists(user.Name)
 }
 
 // Auth serves as user authentication (login)
-func (u *Manager) Auth(user User) (bool, error) {
-	if exists, err := u.Exists(user); err != nil {
+func (m *Manager) Auth(user User) (bool, error) {
+	if exists, err := m.Exists(user); err != nil {
 		return false, err
 	} else if !exists {
 		return false, fmt.Errorf("%w %s", ErrNotExist, user.Name)
 	}
 
-	if hashPass, err := u.load(user.Name); err != nil {
+	if hashPass, err := m.load(user.Name); err != nil {
 		return false, err
 	} else {
 		return bcrypt.CompareHashAndPassword([]byte(hashPass), []byte(user.Password)) == nil, nil
 	}
 }
 
+func (m *Manager) Logout(token string) (*User, error) {
+	user, err := m.ValidateToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	err = m.addToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // Token returns jwtToken, if user provides correct credentials
-func (u *Manager) Token(user User) (string, error) {
-	if auth, err := u.Auth(user); err != nil {
+func (m *Manager) Token(user User) (string, error) {
+	if auth, err := m.Auth(user); err != nil {
 		return "", err
 	} else if !auth {
 		return "", ErrInvalidCredentials
 	}
 
-	expires := time.Now().Add(u.i.Duration())
+	expires := time.Now().Add(m.i.Duration())
 	user.claims.Name = user.Name
 	user.claims.RegisteredClaims = jwt.RegisteredClaims{
 		ExpiresAt: &jwt.NumericDate{Time: expires},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, user.claims)
-	return token.SignedString(u.i.Key())
+	return token.SignedString(m.i.Key())
 }
 
 // ValidateToken returns associated User to token, error on invalid token
-func (u *Manager) ValidateToken(token string) (User, error) {
+func (m *Manager) ValidateToken(token string) (*User, error) {
 	var user User
 	tkn, err := jwt.ParseWithClaims(token, &user.claims, func(token *jwt.Token) (interface{}, error) {
-		return u.i.Key(), nil
+		return m.i.Key(), nil
 	})
 
 	if err != nil {
 		if validationError, ok := err.(*jwt.ValidationError); ok {
 			if (validationError.Errors & jwt.ValidationErrorExpired) == jwt.ValidationErrorExpired {
-				return user, ErrExpired
+				return nil, ErrExpired
 			}
 		}
-		return user, err
+		return nil, err
 	}
 
 	if !tkn.Valid {
-		return user, ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
+
+	if blacklisted, err := m.tokenExists(token); err != nil {
+		return nil, err
+	} else if blacklisted {
+		return nil, ErrBlacklisted
+	}
+
 	user.Name = user.claims.Name
 
-	return user, nil
+	return &user, nil
 }
 
 // load is wrapper for interface call Load, returns appropriate wrapped error
-func (u *Manager) load(name string) (data []byte, err error) {
-	data, err = u.i.Load(name)
+func (m *Manager) load(name string) (data []byte, err error) {
+	data, err = m.i.Load(name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: Load: name %s, error: %v", ErrIO, name, err)
 	}
@@ -176,16 +204,16 @@ func (u *Manager) load(name string) (data []byte, err error) {
 }
 
 // save is wrapper for interface call Save, returns appropriate wrapped error
-func (u *Manager) save(name string, data []byte) error {
-	if err := u.i.Save(name, data); err != nil {
+func (m *Manager) save(name string, data []byte) error {
+	if err := m.i.Save(name, data); err != nil {
 		return fmt.Errorf("%w: Save: name %s, error: %v", ErrIO, name, err)
 	}
 	return nil
 }
 
 // nameExists is wrapper for interface call NameExists, returns appropriate wrapped error
-func (u *Manager) nameExists(name string) (bool, error) {
-	exist, err := u.i.NameExists(name)
+func (m *Manager) nameExists(name string) (bool, error) {
+	exist, err := m.i.NameExists(name)
 	if err != nil {
 		return false, fmt.Errorf("%w: NameExists: %s, error: %v", ErrIO, name, err)
 	}
@@ -193,10 +221,33 @@ func (u *Manager) nameExists(name string) (bool, error) {
 }
 
 // remove is wrapper for interface call Remove, returns appropriate wrapped error
-func (u *Manager) remove(name string) error {
-	err := u.i.Remove(name)
+func (m *Manager) remove(name string) error {
+	err := m.i.Remove(name)
 	if err != nil {
 		return fmt.Errorf("%w: Remove: %s, error: %v", ErrIO, name, err)
 	}
 	return err
+}
+
+// AddToken adds token to token blacklists
+func (m *Manager) addToken(token string) error {
+	err := m.i.AddToken(token)
+	if err != nil {
+		return fmt.Errorf("%w: AddToken: %s, error: %v", ErrIO, token, err)
+	}
+	return nil
+}
+func (m *Manager) tokenExists(token string) (bool, error) {
+	exists, err := m.i.TokenExists(token)
+	if err != nil {
+		return false, fmt.Errorf("%w: TokenExists: %s, error: %v", ErrIO, token, err)
+	}
+	return exists, nil
+}
+func (m *Manager) removeToken(token string) error {
+	err := m.i.RemoveToken(token)
+	if err != nil {
+		return fmt.Errorf("%w: RemoveToken: %s, error: %v", ErrIO, token, err)
+	}
+	return nil
 }

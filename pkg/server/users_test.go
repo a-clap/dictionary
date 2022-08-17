@@ -18,9 +18,32 @@ import (
 	"time"
 )
 
+var _ auth.StoreTokener = &memoryStoreError{}
+
 type memoryStoreError struct {
 	store *auth.MemoryStore
 	err   bool
+}
+
+func (m *memoryStoreError) AddToken(token string) error {
+	if m.err {
+		return fmt.Errorf("io error")
+	}
+	return m.store.AddToken(token)
+}
+
+func (m *memoryStoreError) TokenExists(token string) (bool, error) {
+	if m.err {
+		return false, fmt.Errorf("io error")
+	}
+	return m.store.TokenExists(token)
+}
+
+func (m *memoryStoreError) RemoveToken(token string) error {
+	if m.err {
+		return fmt.Errorf("io error")
+	}
+	return m.store.RemoveToken(token)
 }
 
 func (m *memoryStoreError) Key() []byte {

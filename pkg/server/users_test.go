@@ -8,15 +8,20 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/a-clap/dictionary/internal/auth"
-	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/pkg/server"
+	"github.com/a-clap/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+func init() {
+	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
+}
 
 var _ auth.StoreTokener = &memoryStoreError{}
 
@@ -88,8 +93,7 @@ func (m *memoryStoreError) Remove(name string) error {
 
 func TestServer_addUser(t *testing.T) {
 	type fields struct {
-		h      server.Handler
-		logger logger.Logger
+		h server.Handler
 	}
 	type in struct {
 		url    string
@@ -112,8 +116,7 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "add user",
 			fields: fields{
-				h:      auth.NewMemoryStore([]byte("extra private key"), 1*time.Minute),
-				logger: logger.NewDummy(),
+				h: auth.NewMemoryStore([]byte("extra private key"), 1*time.Minute),
 			},
 			params: []params{
 				{
@@ -132,8 +135,7 @@ func TestServer_addUser(t *testing.T) {
 		{
 			name: "handle errors",
 			fields: fields{
-				h:      auth.NewMemoryStore([]byte("extra private key"), 1*time.Minute),
-				logger: logger.NewDevelopment(),
+				h: auth.NewMemoryStore([]byte("extra private key"), 1*time.Minute),
 			},
 			params: []params{
 				{
@@ -186,7 +188,7 @@ func TestServer_addUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			s := server.New(tt.fields.h, tt.fields.logger)
+			s := server.New(tt.fields.h)
 
 			for i, param := range tt.params {
 				reader := bytes.NewBuffer([]byte(param.in.body))
@@ -207,8 +209,7 @@ func TestServer_addUser(t *testing.T) {
 
 func TestServer_loginUser(t *testing.T) {
 	type fields struct {
-		h      server.Handler
-		logger logger.Logger
+		h server.Handler
 	}
 	type in struct {
 		url    string
@@ -232,8 +233,7 @@ func TestServer_loginUser(t *testing.T) {
 		{
 			name: "add user, then login",
 			fields: fields{
-				h:      auth.NewMemoryStore([]byte("key"), 1*time.Minute),
-				logger: logger.NewDummy(),
+				h: auth.NewMemoryStore([]byte("key"), 1*time.Minute),
 			},
 			params: []params{
 				{
@@ -290,7 +290,7 @@ func TestServer_loginUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			s := server.New(tt.fields.h, tt.fields.logger)
+			s := server.New(tt.fields.h)
 
 			for i, param := range tt.params {
 

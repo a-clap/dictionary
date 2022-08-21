@@ -6,9 +6,9 @@ package translator
 
 import (
 	"github.com/a-clap/dictionary/internal/deepl"
-	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/internal/merriamw/dictionary"
 	"github.com/a-clap/dictionary/internal/merriamw/thesaurus"
+	"github.com/a-clap/logger"
 )
 
 type Translate interface {
@@ -49,14 +49,12 @@ type Translation struct {
 
 type Translator struct {
 	Translate
-	logger.Logger
 }
 
 type standard struct {
 	deepl     *deepl.DeepL
 	dict      *dictionary.Dictionary
 	thesaurus *thesaurus.Thesaurus
-	logger.Logger
 }
 
 func (s *standard) Get(text string, from deepl.SourceLang, to deepl.TargetLang) (*Translation, error) {
@@ -72,7 +70,7 @@ func (s *standard) Get(text string, from deepl.SourceLang, to deepl.TargetLang) 
 	}
 
 	for i, elem := range deeplTranslate.Translations {
-		s.Logger.Infof("got translation %s", elem.Translation())
+		logger.Log.Infof("got translation %s", elem.Translation())
 		t.Deepl[i].Text = elem.Translation()
 	}
 
@@ -96,14 +94,14 @@ func (s *standard) getDefinitions(to deepl.TargetLang, deeplTranslate *[]DeeplTr
 		text := elem.Text
 		d, _, err := s.dict.Definition(text)
 		if err != nil || d == nil {
-			s.Logger.Debugf("definition not found")
+			logger.Log.Debugf("definition not found")
 			continue
 		}
 
 		for _, dict := range d {
-			s.Logger.Debugf("definition for %s is %s", text, dict.Text())
+			logger.Log.Debugf("definition for %s is %s", text, dict.Text())
 			if dict.Text() != text {
-				s.Logger.Debugf("skipping definition as it is not equal text, adding as synonym")
+				logger.Log.Debugf("skipping definition as it is not equal text, adding as synonym")
 				dictTranslates.Synonyms = append(dictTranslates.Synonyms, dict.Text())
 				continue
 			}
@@ -131,7 +129,7 @@ func (s *standard) getThesaurus(to deepl.TargetLang, deeplTranslates *[]DeeplTra
 		text := elem.Text
 		data, err := s.thesaurus.Translate(text)
 		if err != nil {
-			s.Debugf("thesaurus not found for text %s", text)
+			logger.Log.Debugf("thesaurus not found for text %s", text)
 			continue
 		}
 
@@ -167,17 +165,16 @@ func (s *standard) getThesaurus(to deepl.TargetLang, deeplTranslates *[]DeeplTra
 	return th
 }
 
-func New(translate Translate, logger logger.Logger) *Translator {
-	return &Translator{Translate: translate, Logger: logger}
+func New(translate Translate) *Translator {
+	return &Translator{Translate: translate}
 }
 
-func NewStandard(deeplKey, dictKey, thKey string, logger logger.Logger) *Translator {
+func NewStandard(deeplKey, dictKey, thKey string) *Translator {
 	standard := &standard{
-		deepl:     deepl.NewDeepLDefault(deeplKey, logger),
-		dict:      dictionary.NewDictDefault(dictKey, logger),
-		thesaurus: thesaurus.NewThesaurusDefault(thKey, logger),
-		Logger:    logger,
+		deepl:     deepl.NewDeepLDefault(deeplKey),
+		dict:      dictionary.NewDictDefault(dictKey),
+		thesaurus: thesaurus.NewThesaurusDefault(thKey),
 	}
 
-	return New(standard, logger)
+	return New(standard)
 }

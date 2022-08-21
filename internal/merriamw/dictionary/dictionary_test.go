@@ -6,12 +6,17 @@ package dictionary_test
 
 import (
 	"fmt"
-	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/internal/merriamw/dictionary"
+	"github.com/a-clap/logger"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"reflect"
 	"testing"
 )
+
+func init() {
+	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
+}
 
 type errDefinitioner struct {
 }
@@ -21,6 +26,8 @@ func (e errDefinitioner) Get(_ string) ([]byte, error) {
 }
 
 func TestDictionary_Definition(t *testing.T) {
+	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
+
 	dictKey, ok := os.LookupEnv("MW_DICT_KEY")
 	if !ok {
 		t.Fatal("MW_DICT_KEY not defined in ENV")
@@ -28,7 +35,6 @@ func TestDictionary_Definition(t *testing.T) {
 
 	type fields struct {
 		Definitioner dictionary.Definitioner
-		Logger       logger.Logger
 	}
 	type args struct {
 		text string
@@ -49,7 +55,6 @@ func TestDictionary_Definition(t *testing.T) {
 			name: "handle error gracefully",
 			fields: fields{
 				Definitioner: errDefinitioner{},
-				Logger:       logger.NewDummy(),
 			},
 			args: args{
 				text: "",
@@ -65,7 +70,6 @@ func TestDictionary_Definition(t *testing.T) {
 			name: "test some obvious word \"world\"",
 			fields: fields{
 				Definitioner: dictionary.NewDefaultGetDefinition(dictKey),
-				Logger:       logger.NewDummy(),
 			},
 			args: args{
 				text: "world",
@@ -81,7 +85,6 @@ func TestDictionary_Definition(t *testing.T) {
 			name: "test typo \"warld\"",
 			fields: fields{
 				Definitioner: dictionary.NewDefaultGetDefinition(dictKey),
-				Logger:       logger.NewDummy(),
 			},
 			args: args{
 				text: "warld",
@@ -98,7 +101,7 @@ func TestDictionary_Definition(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := dictionary.NewDictionary(tt.fields.Definitioner, tt.fields.Logger)
+			d := dictionary.NewDictionary(tt.fields.Definitioner)
 			gotData, suggestions, err := d.Definition(tt.args.text)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("%s: Definition() error = %v, wantErr %v", t.Name(), err, tt.wantErr)

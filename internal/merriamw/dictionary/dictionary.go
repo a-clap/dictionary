@@ -8,7 +8,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/a-clap/dictionary/internal/logger"
+	"github.com/a-clap/logger"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,7 +18,6 @@ import (
 
 type Dictionary struct {
 	Definitioner
-	logger.Logger
 }
 
 type Definitioner interface {
@@ -37,14 +37,13 @@ type Suggestions struct {
 	Suggestions []string
 }
 
-func NewDictDefault(key string, logger logger.Logger) *Dictionary {
-	return NewDictionary(NewDefaultGetDefinition(key), logger)
+func NewDictDefault(key string) *Dictionary {
+	return NewDictionary(NewDefaultGetDefinition(key))
 }
 
-func NewDictionary(getDefinition Definitioner, logger logger.Logger) *Dictionary {
+func NewDictionary(getDefinition Definitioner) *Dictionary {
 	return &Dictionary{
 		Definitioner: getDefinition,
-		Logger:       logger,
 	}
 }
 
@@ -55,7 +54,7 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 	resp, err := d.Get(text)
 	if err != nil {
 		err = fmt.Errorf("error on get %w", err)
-		d.Errorf("error on get %v", err)
+		logger.Log.Errorf("error on get %v", err)
 		return
 	}
 
@@ -64,18 +63,18 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 		data = nil
 		// This usually means, text wasn't found on dictionary.
 		// In that case, we will get an array of strings with suggestions
-		d.Debugf("error decoding json: %v", err)
-		d.Debugf("parsing as string, to get useful information...")
+		logger.Log.Debugf("error decoding json: %v", err)
+		logger.Log.Debugf("parsing as string, to get useful information...")
 
 		suggestions = &Suggestions{Suggestions: []string{}}
 		errString := json.Unmarshal(resp, &suggestions.Suggestions)
 		if errString == nil {
 			err = nil
-			d.Debugf("...success!")
+			logger.Log.Debugf("...success!")
 		} else {
 			suggestions = nil
 			err = fmt.Errorf("%w %v", err, errString)
-			d.Debugf("...failure!")
+			logger.Log.Debugf("...failure!")
 		}
 	}
 	return
@@ -159,7 +158,12 @@ func (d DefaultGetDefinition) Get(text string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get failed %v", err)
 	}
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Log.Debugf("error on Body.Close() %#v", err)
+		}
+	}(response.Body)
 
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code %s", response.Status)

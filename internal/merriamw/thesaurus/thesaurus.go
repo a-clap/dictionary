@@ -8,14 +8,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/a-clap/dictionary/internal/logger"
+	"github.com/a-clap/logger"
+	"io"
 	"net/http"
 	"net/url"
 )
 
 type Thesaurus struct {
 	Thesauruser
-	logger.Logger
 }
 
 type Thesauruser interface {
@@ -26,12 +26,12 @@ type DefaultThesauruser struct {
 	key string
 }
 
-func NewThesaurus(getWord Thesauruser, logger logger.Logger) *Thesaurus {
-	return &Thesaurus{Thesauruser: getWord, Logger: logger}
+func NewThesaurus(getWord Thesauruser) *Thesaurus {
+	return &Thesaurus{Thesauruser: getWord}
 }
 
-func NewThesaurusDefault(key string, logger logger.Logger) *Thesaurus {
-	return NewThesaurus(NewDefaultThesauruser(key), logger)
+func NewThesaurusDefault(key string) *Thesaurus {
+	return NewThesaurus(NewDefaultThesauruser(key))
 }
 
 func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
@@ -42,8 +42,8 @@ func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
 
 	err = json.Unmarshal(resp, &words)
 	if err != nil {
-		t.Debugf("error decoding json: %v", err)
-		t.Debugf("parsing as string, to get useful information...")
+		logger.Log.Debugf("error decoding json: %v", err)
+		logger.Log.Debugf("parsing as string, to get useful information...")
 
 		var errorInfo []string
 		errString := json.Unmarshal(resp, &errorInfo)
@@ -105,7 +105,12 @@ func (d DefaultThesauruser) Get(text string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get failed %v", err)
 	}
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Log.Debugf("error on Body.Close() %#v", err)
+		}
+	}(response.Body)
 
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code %s", response.Status)

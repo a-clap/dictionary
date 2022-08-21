@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/a-clap/dictionary/internal/deepl"
-	"github.com/a-clap/dictionary/internal/logger"
+	"github.com/a-clap/logger"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 	"log"
 	"os"
 	"reflect"
@@ -19,6 +21,10 @@ type fakeAccess struct {
 	translation string
 	expected    deepl.Word
 	generateErr bool
+}
+
+func init() {
+	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
 }
 
 func (f fakeAccess) Query(_ string, sourceLang deepl.SourceLang, _ deepl.TargetLang) ([]byte, error) {
@@ -109,7 +115,7 @@ func TestDeepL_Translate(t *testing.T) {
 			name: "direct call EN -> PL",
 			args: args{
 				in: in{
-					acc:  deepl.NewDeeplerDefault(api, logger.NewDummy()),
+					acc:  deepl.NewDeeplerDefault(api),
 					text: "brain",
 					src:  deepl.SrcEnglish,
 					dst:  deepl.TarPolish,
@@ -129,7 +135,7 @@ func TestDeepL_Translate(t *testing.T) {
 			name: "direct call PL -> EN",
 			args: args{
 				in: in{
-					acc:  deepl.NewDeeplerDefault(api, logger.NewDummy()),
+					acc:  deepl.NewDeeplerDefault(api),
 					text: "mózg",
 					src:  deepl.SrcPolish,
 					dst:  deepl.TarEnglishBritish,
@@ -148,7 +154,8 @@ func TestDeepL_Translate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := deepl.NewDeepL(tt.args.in.acc, logger.NewDummy())
+			d := deepl.NewDeepL(tt.args.in.acc)
+			require.NotNil(t, d)
 			w, err := d.Translate(tt.args.in.text, tt.args.in.src, tt.args.in.dst)
 
 			if (err != nil) != tt.args.out.err {

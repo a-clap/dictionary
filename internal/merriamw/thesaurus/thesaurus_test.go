@@ -6,12 +6,17 @@ package thesaurus_test
 
 import (
 	"fmt"
-	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/internal/merriamw/thesaurus"
+	"github.com/a-clap/logger"
 	"github.com/google/go-cmp/cmp"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"testing"
 )
+
+func init() {
+	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
+}
 
 type errThesauruser struct {
 }
@@ -28,7 +33,6 @@ func TestThesaurus_Translate(t1 *testing.T) {
 
 	type fields struct {
 		Thesauruser thesaurus.Thesauruser
-		Logger      logger.Logger
 	}
 	type args struct {
 		text string
@@ -47,7 +51,6 @@ func TestThesaurus_Translate(t1 *testing.T) {
 			name: "handle error gracefully",
 			fields: fields{
 				Thesauruser: errThesauruser{},
-				Logger:      logger.NewDummy(),
 			},
 			args:     args{},
 			wantData: wants{},
@@ -57,7 +60,6 @@ func TestThesaurus_Translate(t1 *testing.T) {
 			name: "test some obvious word \"world\"",
 			fields: fields{
 				Thesauruser: thesaurus.NewDefaultThesauruser(thKey),
-				Logger:      logger.NewDummy(),
 			},
 			args: args{
 				text: "world",
@@ -85,7 +87,7 @@ func TestThesaurus_Translate(t1 *testing.T) {
 	}
 	for _, tt := range tests {
 		t1.Run(tt.name, func(tester *testing.T) {
-			t := thesaurus.NewThesaurus(tt.fields.Thesauruser, tt.fields.Logger)
+			t := thesaurus.NewThesaurus(tt.fields.Thesauruser)
 			gotWords, err := t.Translate(tt.args.text)
 			if (err != nil) != tt.wantErr {
 				tester.Fatalf("%s: Translate() error = %v, wantErr %v", tester.Name(), err, tt.wantErr)

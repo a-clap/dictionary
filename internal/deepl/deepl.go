@@ -8,7 +8,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/a-clap/dictionary/internal/logger"
+	"github.com/a-clap/logger"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -77,19 +78,18 @@ const (
 
 type DeepL struct {
 	Deepler
-	logger.Logger
 }
 
 type Deepler interface {
 	Query(text string, sourceLang SourceLang, targetLanguage TargetLang) ([]byte, error)
 }
 
-func NewDeepL(deepler Deepler, logger logger.Logger) *DeepL {
-	return &DeepL{Deepler: deepler, Logger: logger}
+func NewDeepL(deepler Deepler) *DeepL {
+	return &DeepL{Deepler: deepler}
 }
 
-func NewDeepLDefault(key string, logger logger.Logger) *DeepL {
-	return NewDeepL(NewDeeplerDefault(key, logger), logger)
+func NewDeepLDefault(key string) *DeepL {
+	return NewDeepL(NewDeeplerDefault(key))
 }
 
 func (d *DeepL) Translate(text string, sourceLang SourceLang, targetLang TargetLang) (*Word, error) {
@@ -97,13 +97,13 @@ func (d *DeepL) Translate(text string, sourceLang SourceLang, targetLang TargetL
 	if err != nil {
 		return nil, fmt.Errorf("on query %w", err)
 	}
-	d.Infof("attempting to parse json")
+	logger.Log.Infof("attempting to parse json")
 
 	w := &Word{}
 	err = json.Unmarshal(b, w)
 	if err != nil {
-		d.Errorf("failed to parse json %#v", err)
-		d.Infof("string from data %s", string(b))
+		logger.Log.Errorf("failed to parse json %#v", err)
+		logger.Log.Infof("string from data %s", string(b))
 		return nil, fmt.Errorf("failed to parse json %w", err)
 	}
 	return w, nil
@@ -135,7 +135,6 @@ func (t Translations) SourceLang() string {
 
 type DeeplerDefault struct {
 	values url.Values
-	logger.Logger
 }
 
 type Translations struct {
@@ -146,12 +145,11 @@ type Word struct {
 	Translations []Translations `json:"translations"`
 }
 
-func NewDeeplerDefault(key string, logger logger.Logger) *DeeplerDefault {
+func NewDeeplerDefault(key string) *DeeplerDefault {
 	return &DeeplerDefault{
 		values: map[string][]string{
 			"auth_key": {key},
 		},
-		Logger: logger,
 	}
 }
 
@@ -164,14 +162,19 @@ func (a *DeeplerDefault) Query(text string, sourceLang SourceLang, targetLang Ta
 	if err != nil {
 		return nil, fmt.Errorf("error on http.Post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Log.Debugf("error on Body.Close() %#v", err)
+		}
+	}(resp.Body)
 
 	var buf bytes.Buffer
 	n, err := buf.ReadFrom(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error on reading response body: %w", err)
 	}
-	a.Infof("read %v bytes from resp.Body", n)
+	logger.Log.Infof("read %v bytes from resp.Body", n)
 
 	return buf.Bytes(), nil
 }

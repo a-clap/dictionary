@@ -6,13 +6,18 @@ package translator_test
 
 import (
 	"github.com/a-clap/dictionary/internal/deepl"
-	"github.com/a-clap/dictionary/internal/logger"
 	"github.com/a-clap/dictionary/internal/merriamw/dictionary"
 	"github.com/a-clap/dictionary/pkg/translator"
+	"github.com/a-clap/logger"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"testing"
 )
+
+func init() {
+	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
+}
 
 func TestTranslator_Get(t *testing.T) {
 	deeplKey, ok := os.LookupEnv("DEEPL_KEY")
@@ -49,7 +54,7 @@ func TestTranslator_Get(t *testing.T) {
 		{
 			name: "TarPolish doesn't contain neither dictionary neither thesaurus",
 			fields: fields{
-				translate: translator.NewStandard(deeplKey, dictKey, thKey, logger.NewDummy()),
+				translate: translator.NewStandard(deeplKey, dictKey, thKey),
 			},
 			args: args{
 				text: "brain",
@@ -69,7 +74,7 @@ func TestTranslator_Get(t *testing.T) {
 		{
 			name: "dict json",
 			fields: fields{
-				translate: translator.NewStandard(deeplKey, dictKey, thKey, logger.NewDummy()),
+				translate: translator.NewStandard(deeplKey, dictKey, thKey),
 			},
 			args: args{
 				text: "mózg",

@@ -6,13 +6,14 @@ package server
 
 import (
 	"github.com/a-clap/dictionary/internal/auth"
+	"github.com/a-clap/logger"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 func (s *Server) auth() gin.HandlerFunc {
 	return func(context *gin.Context) {
-		s.logger.Infof("auth")
+		logger.Log.Infof("auth")
 		token := context.GetHeader("Authorization")
 		if len(token) == 0 {
 			context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "request doesn't contain an authorization token"})
@@ -23,7 +24,7 @@ func (s *Server) auth() gin.HandlerFunc {
 			context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		s.logger.Infof("user %s logged successfully", user.Name)
+		logger.Log.Infof("user %s logged successfully", user.Name)
 		context.Next()
 	}
 }

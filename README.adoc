@@ -4,7 +4,43 @@
 
 Personal dictionary used to improve my english vocabulary.
 
-== About
+== What is this?
 
-TODO
+Idea behind this project is to create personal dictionary used to facilitate improving Your bank of vocabulary. You can:
+
+* create an account,
+* add words (or phrases),
+* use it for learning vocabulary
+
+== What other features this project provides?
+
+For personal words/phrases:
+
+* english definition, synonyms, antonyms
+* usage examples,
+* pronunciation - also in audio (!),
+
+For learning vocabulary - not sure yet :)
+
+
+== There are many other ready solutions for this, why?
+
+Personally, it is much easier to learn programming language by working on project.
+
+== Is it done?
+
+Not yet, work still in progress :)
+
+* [x] translate eng <- -> pl
+** [x] https://www.deepl.com/[deepl]
+** [x] https://mymemory.translated.net/[mymemory]
+* [x] access to dictionary and thesaurus for english
+** [x] https://www.dictionaryapi.com[merriamw]
+* [ ] Rest API - WIP
+** [x] user authentication
+** [ ] translation, thesaurus and dictionary API - all in one
+* [ ] Store data in DB
+* [ ] probably much more..
+
+
 

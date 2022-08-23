@@ -54,7 +54,7 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 	resp, err := d.Get(text)
 	if err != nil {
 		err = fmt.Errorf("error on get %w", err)
-		logger.Log.Errorf("error on get %v", err)
+		logger.Errorf("error on get %v", err)
 		return
 	}
 
@@ -63,18 +63,18 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 		data = nil
 		// This usually means, text wasn't found on dictionary.
 		// In that case, we will get an array of strings with suggestions
-		logger.Log.Debugf("error decoding json: %v", err)
-		logger.Log.Debugf("parsing as string, to get useful information...")
+		logger.Debugf("error decoding json: %v", err)
+		logger.Debugf("parsing as string, to get useful information...")
 
 		suggestions = &Suggestions{Suggestions: []string{}}
 		errString := json.Unmarshal(resp, &suggestions.Suggestions)
 		if errString == nil {
 			err = nil
-			logger.Log.Debugf("...success!")
+			logger.Debugf("...success!")
 		} else {
 			suggestions = nil
 			err = fmt.Errorf("%w %v", err, errString)
-			logger.Log.Debugf("...failure!")
+			logger.Debugf("...failure!")
 		}
 	}
 	return
@@ -161,7 +161,7 @@ func (d DefaultGetDefinition) Get(text string) ([]byte, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.Log.Debugf("error on Body.Close() %#v", err)
+			logger.Debugf("error on Body.Close() %#v", err)
 		}
 	}(response.Body)
 

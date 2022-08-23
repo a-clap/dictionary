@@ -30,7 +30,7 @@ func (d *MyMemory) Translate(word string, lang Language) (words *Word, err error
 
 	err = json.Unmarshal(data, &words)
 	if err != nil {
-		logger.Log.Errorf("error decoding json %v", err)
+		logger.Errorf("error decoding json %v", err)
 		return
 	}
 	return

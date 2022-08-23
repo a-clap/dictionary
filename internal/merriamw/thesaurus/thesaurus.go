@@ -42,8 +42,8 @@ func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
 
 	err = json.Unmarshal(resp, &words)
 	if err != nil {
-		logger.Log.Debugf("error decoding json: %v", err)
-		logger.Log.Debugf("parsing as string, to get useful information...")
+		logger.Debugf("error decoding json: %v", err)
+		logger.Debugf("parsing as string, to get useful information...")
 
 		var errorInfo []string
 		errString := json.Unmarshal(resp, &errorInfo)
@@ -108,7 +108,7 @@ func (d DefaultThesauruser) Get(text string) ([]byte, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.Log.Debugf("error on Body.Close() %#v", err)
+			logger.Debugf("error on Body.Close() %#v", err)
 		}
 	}(response.Body)
 

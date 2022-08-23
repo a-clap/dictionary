@@ -70,7 +70,7 @@ func (s *standard) Get(text string, from deepl.SourceLang, to deepl.TargetLang) 
 	}
 
 	for i, elem := range deeplTranslate.Translations {
-		logger.Log.Infof("got translation %s", elem.Translation())
+		logger.Infof("got translation %s", elem.Translation())
 		t.Deepl[i].Text = elem.Translation()
 	}
 
@@ -94,14 +94,14 @@ func (s *standard) getDefinitions(to deepl.TargetLang, deeplTranslate *[]DeeplTr
 		text := elem.Text
 		d, _, err := s.dict.Definition(text)
 		if err != nil || d == nil {
-			logger.Log.Debugf("definition not found")
+			logger.Debugf("definition not found")
 			continue
 		}
 
 		for _, dict := range d {
-			logger.Log.Debugf("definition for %s is %s", text, dict.Text())
+			logger.Debugf("definition for %s is %s", text, dict.Text())
 			if dict.Text() != text {
-				logger.Log.Debugf("skipping definition as it is not equal text, adding as synonym")
+				logger.Debugf("skipping definition as it is not equal text, adding as synonym")
 				dictTranslates.Synonyms = append(dictTranslates.Synonyms, dict.Text())
 				continue
 			}
@@ -129,7 +129,7 @@ func (s *standard) getThesaurus(to deepl.TargetLang, deeplTranslates *[]DeeplTra
 		text := elem.Text
 		data, err := s.thesaurus.Translate(text)
 		if err != nil {
-			logger.Log.Debugf("thesaurus not found for text %s", text)
+			logger.Debugf("thesaurus not found for text %s", text)
 			continue
 		}
 

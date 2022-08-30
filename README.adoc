@@ -4,6 +4,8 @@
 
 Personal dictionary used to improve my english vocabulary.
 
+image:https://dl.circleci.com/status-badge/img/gh/a-clap/dictionary/tree/circleci-project-setup.svg?style=svg["CircleCI", link="https://dl.circleci.com/status-badge/redirect/gh/a-clap/dictionary/tree/circleci-project-setup"]
+
 == What is this?
 
 Idea behind this project is to create personal dictionary used to facilitate improving Your bank of vocabulary. You can:

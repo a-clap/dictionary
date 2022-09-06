@@ -7,16 +7,10 @@ package dictionary_test
 import (
 	"fmt"
 	"github.com/a-clap/dictionary/internal/merriamw/dictionary"
-	"github.com/a-clap/logger"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"reflect"
 	"testing"
 )
-
-func init() {
-	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
-}
 
 type errDefinitioner struct {
 }
@@ -26,7 +20,6 @@ func (e errDefinitioner) Get(_ string) ([]byte, error) {
 }
 
 func TestDictionary_Definition(t *testing.T) {
-	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
 
 	dictKey, ok := os.LookupEnv("MW_DICT_KEY")
 	if !ok {

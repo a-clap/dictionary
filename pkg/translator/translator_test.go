@@ -8,15 +8,12 @@ import (
 	"github.com/a-clap/dictionary/internal/deepl"
 	"github.com/a-clap/dictionary/internal/merriamw/dictionary"
 	"github.com/a-clap/dictionary/pkg/translator"
-	"github.com/a-clap/logger"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"testing"
 )
 
 func init() {
-	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
 }
 
 func TestTranslator_Get(t *testing.T) {

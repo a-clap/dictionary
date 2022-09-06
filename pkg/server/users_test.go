@@ -10,10 +10,8 @@ import (
 	"fmt"
 	"github.com/a-clap/dictionary/internal/auth"
 	"github.com/a-clap/dictionary/pkg/server"
-	"github.com/a-clap/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,7 +19,6 @@ import (
 )
 
 func init() {
-	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
 }
 
 var _ auth.StoreTokener = &memoryStoreError{}

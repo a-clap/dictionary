@@ -16,6 +16,8 @@ import (
 	"unicode"
 )
 
+var Logger logger.Logger = logger.NewNop()
+
 type Dictionary struct {
 	Definitioner
 }
@@ -54,7 +56,7 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 	resp, err := d.Get(text)
 	if err != nil {
 		err = fmt.Errorf("error on get %w", err)
-		logger.Errorf("error on get %v", err)
+		Logger.Errorf("error on get %v", err)
 		return
 	}
 
@@ -63,18 +65,18 @@ func (d Dictionary) Definition(text string) (data []*Definition, suggestions *Su
 		data = nil
 		// This usually means, text wasn't found on dictionary.
 		// In that case, we will get an array of strings with suggestions
-		logger.Debugf("error decoding json: %v", err)
-		logger.Debugf("parsing as string, to get useful information...")
+		Logger.Debugf("error decoding json: %v", err)
+		Logger.Debugf("parsing as string, to get useful information...")
 
 		suggestions = &Suggestions{Suggestions: []string{}}
 		errString := json.Unmarshal(resp, &suggestions.Suggestions)
 		if errString == nil {
 			err = nil
-			logger.Debugf("...success!")
+			Logger.Debugf("...success!")
 		} else {
 			suggestions = nil
 			err = fmt.Errorf("%w %v", err, errString)
-			logger.Debugf("...failure!")
+			Logger.Debugf("...failure!")
 		}
 	}
 	return
@@ -161,7 +163,7 @@ func (d DefaultGetDefinition) Get(text string) ([]byte, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.Debugf("error on Body.Close() %#v", err)
+			Logger.Debugf("error on Body.Close() %#v", err)
 		}
 	}(response.Body)
 

@@ -8,9 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/a-clap/dictionary/internal/deepl"
-	"github.com/a-clap/logger"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 	"log"
 	"os"
 	"reflect"
@@ -24,7 +22,6 @@ type fakeAccess struct {
 }
 
 func init() {
-	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
 }
 
 func (f fakeAccess) Query(_ string, sourceLang deepl.SourceLang, _ deepl.TargetLang) ([]byte, error) {

@@ -7,15 +7,12 @@ package thesaurus_test
 import (
 	"fmt"
 	"github.com/a-clap/dictionary/internal/merriamw/thesaurus"
-	"github.com/a-clap/logger"
 	"github.com/google/go-cmp/cmp"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"testing"
 )
 
 func init() {
-	logger.Init(logger.NewDefaultZap(zapcore.DebugLevel))
 }
 
 type errThesauruser struct {

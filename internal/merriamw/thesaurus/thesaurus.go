@@ -14,6 +14,8 @@ import (
 	"net/url"
 )
 
+var Logger logger.Logger = logger.NewNop()
+
 type Thesaurus struct {
 	Thesauruser
 }
@@ -42,8 +44,8 @@ func (t *Thesaurus) Translate(text string) (words []*Word, err error) {
 
 	err = json.Unmarshal(resp, &words)
 	if err != nil {
-		logger.Debugf("error decoding json: %v", err)
-		logger.Debugf("parsing as string, to get useful information...")
+		Logger.Debugf("error decoding json: %v", err)
+		Logger.Debugf("parsing as string, to get useful information...")
 
 		var errorInfo []string
 		errString := json.Unmarshal(resp, &errorInfo)
@@ -108,7 +110,7 @@ func (d DefaultThesauruser) Get(text string) ([]byte, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.Debugf("error on Body.Close() %#v", err)
+			Logger.Debugf("error on Body.Close() %#v", err)
 		}
 	}(response.Body)
 

@@ -10,6 +10,8 @@ import (
 	"github.com/a-clap/logger"
 )
 
+var Logger logger.Logger = logger.NewNop()
+
 type MyMemory struct {
 	GetWord
 }
@@ -30,7 +32,7 @@ func (d *MyMemory) Translate(word string, lang Language) (words *Word, err error
 
 	err = json.Unmarshal(data, &words)
 	if err != nil {
-		logger.Errorf("error decoding json %v", err)
+		Logger.Errorf("error decoding json %v", err)
 		return
 	}
 	return

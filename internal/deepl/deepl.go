@@ -14,6 +14,8 @@ import (
 	"net/url"
 )
 
+var Logger logger.Logger = logger.NewNop()
+
 type SourceLang string
 type TargetLang string
 
@@ -97,13 +99,13 @@ func (d *DeepL) Translate(text string, sourceLang SourceLang, targetLang TargetL
 	if err != nil {
 		return nil, fmt.Errorf("on query %w", err)
 	}
-	logger.Infof("attempting to parse json")
+	Logger.Infof("attempting to parse json")
 
 	w := &Word{}
 	err = json.Unmarshal(b, w)
 	if err != nil {
-		logger.Errorf("failed to parse json %#v", err)
-		logger.Infof("string from data %s", string(b))
+		Logger.Errorf("failed to parse json %#v", err)
+		Logger.Infof("string from data %s", string(b))
 		return nil, fmt.Errorf("failed to parse json %w", err)
 	}
 	return w, nil
@@ -165,7 +167,7 @@ func (a *DeeplerDefault) Query(text string, sourceLang SourceLang, targetLang Ta
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.Debugf("error on Body.Close() %#v", err)
+			Logger.Debugf("error on Body.Close() %#v", err)
 		}
 	}(resp.Body)
 
@@ -174,7 +176,7 @@ func (a *DeeplerDefault) Query(text string, sourceLang SourceLang, targetLang Ta
 	if err != nil {
 		return nil, fmt.Errorf("error on reading response body: %w", err)
 	}
-	logger.Infof("read %v bytes from resp.Body", n)
+	Logger.Infof("read %v bytes from resp.Body", n)
 
 	return buf.Bytes(), nil
 }

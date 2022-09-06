@@ -11,6 +11,8 @@ import (
 	"github.com/a-clap/logger"
 )
 
+var Logger logger.Logger = logger.NewNop()
+
 type Translate interface {
 	Get(text string, from deepl.SourceLang, to deepl.TargetLang) (*Translation, error)
 }
@@ -70,7 +72,7 @@ func (s *standard) Get(text string, from deepl.SourceLang, to deepl.TargetLang) 
 	}
 
 	for i, elem := range deeplTranslate.Translations {
-		logger.Infof("got translation %s", elem.Translation())
+		Logger.Infof("got translation %s", elem.Translation())
 		t.Deepl[i].Text = elem.Translation()
 	}
 
@@ -94,14 +96,14 @@ func (s *standard) getDefinitions(to deepl.TargetLang, deeplTranslate *[]DeeplTr
 		text := elem.Text
 		d, _, err := s.dict.Definition(text)
 		if err != nil || d == nil {
-			logger.Debugf("definition not found")
+			Logger.Debugf("definition not found")
 			continue
 		}
 
 		for _, dict := range d {
-			logger.Debugf("definition for %s is %s", text, dict.Text())
+			Logger.Debugf("definition for %s is %s", text, dict.Text())
 			if dict.Text() != text {
-				logger.Debugf("skipping definition as it is not equal text, adding as synonym")
+				Logger.Debugf("skipping definition as it is not equal text, adding as synonym")
 				dictTranslates.Synonyms = append(dictTranslates.Synonyms, dict.Text())
 				continue
 			}
@@ -129,7 +131,7 @@ func (s *standard) getThesaurus(to deepl.TargetLang, deeplTranslates *[]DeeplTra
 		text := elem.Text
 		data, err := s.thesaurus.Translate(text)
 		if err != nil {
-			logger.Debugf("thesaurus not found for text %s", text)
+			Logger.Debugf("thesaurus not found for text %s", text)
 			continue
 		}
 

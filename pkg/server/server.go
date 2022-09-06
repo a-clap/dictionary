@@ -6,8 +6,11 @@ package server
 
 import (
 	"github.com/a-clap/dictionary/internal/auth"
+	"github.com/a-clap/logger"
 	"github.com/gin-gonic/gin"
 )
+
+var Logger logger.Logger = logger.NewNop()
 
 type Handler interface {
 	auth.StoreTokener
